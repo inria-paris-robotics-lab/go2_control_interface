@@ -2,14 +2,14 @@
 
 import rclpy
 from rclpy.node import Node
-from go2_control_interface.robot_interface import RobotInterface
+from go2_control_interface.robot_interface import Go2RobotInterface
 
 
-class DampJointNode(Node, RobotInterface):
+class DampJointNode(Node, Go2RobotInterface):
 
     def __init__(self):
         Node.__init__(self, "damp_joint_node")
-        RobotInterface.__init__(self, self)
+        Go2RobotInterface.__init__(self, self)
 
         self.timer = self.create_timer(0.001, self.timer_callback)
 

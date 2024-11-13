@@ -4,7 +4,14 @@ from rclpy.node import Node
 from typing import List
 from unitree_go.msg import LowCmd
 
-class RobotInterface():
+class Go2RobotInterface():
+    # TODO: Populate this array programmatically
+    __ros_to_urdf_index = [
+            3,  4,  5,
+            0,  1,  2,
+            9, 10, 11,
+            6,  7,  8,
+        ] # re-ordering joints
 
     def __init__(self, node: Node):
         self.is_init = False
@@ -24,7 +31,7 @@ class RobotInterface():
         self.scaling = scaling
 
     def send_command(self, q: List[float], v: List[float], tau: List[float], kp: List[float], kd: List[float]):
-        assert self.is_init, "RobotInterface not init-ed, call init(q_start) first"
+        assert self.is_init, "Go2RobotInterface not init-ed, call init(q_start) first"
         assert len(q) == 12, "Wrong configuration size"
         assert len(v) == 12, "Wrong configuration size"
         assert len(tau) == 12, "Wrong configuration size"
@@ -56,12 +63,14 @@ class RobotInterface():
         msg.gpio = 0
 
         for i in range(12):
+            i_urdf = self.__ros_to_urdf_index[i] # Re-order joints
+
             msg.motor_cmd[i].mode = 0x01 #Set toque mode
-            msg.motor_cmd[i].q = q[i]
-            msg.motor_cmd[i].dq = v[i]
-            msg.motor_cmd[i].tau = self.scaling * tau[i]
-            msg.motor_cmd[i].kp = self.scaling * kp[i]
-            msg.motor_cmd[i].kd = self.scaling * kd[i]
+            msg.motor_cmd[i].q = q[i_urdf]
+            msg.motor_cmd[i].dq = v[i_urdf]
+            msg.motor_cmd[i].tau = self.scaling * tau[i_urdf]
+            msg.motor_cmd[i].kp = self.scaling * kp[i_urdf]
+            msg.motor_cmd[i].kd = self.scaling * kd[i_urdf]
 
         for i in range(12, 20): # Unused motors
             msg.motor_cmd[i].mode = 0x00 #Set passive mode
