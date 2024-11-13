@@ -1,4 +1,5 @@
 from setuptools import setup
+from glob import glob
 
 package_name = 'go2_control_interface'
 
@@ -7,8 +8,8 @@ setup(
  version='0.0.0',
  packages=[package_name],
  data_files=[
-    #  ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
      ('share/' + package_name, ['package.xml']),
+     ('lib/' + package_name, glob("scripts/*.py")),
    ],
  install_requires=['setuptools'],
  zip_safe=True,
