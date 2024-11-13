@@ -7,6 +7,9 @@
   <maintainer email="etienne.arlaud@inria.fr">earlaud</maintainer>
   <license>BSD-3-Clause</license>
 
+  <depend>rclcpp</depend>
+  <depend>unitree_go</depend>
+  <depend>Eigen3</depend>
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <test_depend>ament_lint_auto</test_depend>

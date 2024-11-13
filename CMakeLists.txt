@@ -9,7 +9,36 @@ endif()
 find_package(ament_cmake REQUIRED)
 # uncomment the following section in order to fill in
 # further dependencies manually.
-# find_package(<dependency> REQUIRED)
+find_package(Eigen3 REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(unitree_go REQUIRED)
+
+include(GNUInstallDirs)
+
+# Main library
+add_library(${PROJECT_NAME} SHARED
+  src/robot_controller.cpp
+)
+target_include_directories(${PROJECT_NAME} PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+)
+target_link_libraries(${PROJECT_NAME} Eigen3::Eigen)
+ament_target_dependencies(${PROJECT_NAME} unitree_go rclcpp)
+
+install(TARGETS
+  ${PROJECT_NAME}
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+
+# Examples
+add_executable(custom_damping_mode examples/custom_damping_mode.cpp)
+target_link_libraries(custom_damping_mode Eigen3::Eigen ${PROJECT_NAME} rclcpp)
+
+install(TARGETS
+  custom_damping_mode
+  DESTINATION ${CMAKE_INSTALL_EXECDIR}
+)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
