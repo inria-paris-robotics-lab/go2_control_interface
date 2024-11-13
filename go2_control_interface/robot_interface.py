@@ -17,13 +17,14 @@ class RobotInterface():
         # TODO: Disable sportsmode controller
         # TODO: go to q_start
 
-        # self.is_init = True
+        self.is_init = True
         pass
 
     def set_scaling(self, scaling: float):
         self.scaling = scaling
 
     def send_command(self, q: List[float], v: List[float], tau: List[float], kp: List[float], kd: List[float]):
+        assert self.is_init, "RobotInterface not init-ed, call init(q_start) first"
         assert len(q) == 12, "Wrong configuration size"
         assert len(v) == 12, "Wrong configuration size"
         assert len(tau) == 12, "Wrong configuration size"
