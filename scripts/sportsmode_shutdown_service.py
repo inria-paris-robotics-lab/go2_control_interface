@@ -2,18 +2,18 @@
 
 import rclpy
 from rclpy.node import Node
-from go2_control_interface.srv import SportsModeShutdown
-from go2_control_interface import Go2Shutdown
+from std_srvs.srv import SetBool
+from go2_control_interface.sportsmode_shutdown import Go2Shutdown
 
 
 class SportsModeShutdownService(Node):
     def __init__(self):
         super().__init__("sportsmode_shutdown_server")
-        self.server_ = self.create_service(SportsModeShutdown, "sportsmode_shutdown_service", self.service_callback)
+        self.server_ = self.create_service(SetBool, "sportsmode_shutdown_service", self.service_callback)
         self.get_logger().info("Service server Python node has been created")
     
     def service_callback(self, request, response): 
-        client = Go2ServicesClient("enx00143d1488c7")
+        client = Go2Shutdown("enx00143d1488c7")
         client.SwitchOff()
         response.res = 0
         self.get_logger().info(f'Processed request shutdown')
