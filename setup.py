@@ -21,5 +21,8 @@ setup(
  license='BSD-3-Clause',
 #  tests_require=['pytest'],
  entry_points={
+     'console_scripts': [
+             'go2_shutdown = go2_control_interface.sportsmode_shutdown:main'
+     ],
    },
 )
