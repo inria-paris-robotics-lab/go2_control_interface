@@ -11,10 +11,11 @@ class DampJointNode(Node, Go2RobotInterface):
         Node.__init__(self, "damp_joint_node")
         Go2RobotInterface.__init__(self, self)
 
+        self.init([0.]*12)
         self.timer = self.create_timer(0.001, self.timer_callback)
 
     def timer_callback(self):
-        self.send_command([0]*12, [0]*12, [0]*12, [0]*12, [0.1]*12)
+        self.send_command([0.]*12, [0.]*12, [0.]*12, [0.]*12, [0.1]*12)
 
 def main(args=None):
     rclpy.init(args=args)

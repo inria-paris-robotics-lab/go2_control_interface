@@ -3,6 +3,7 @@ from rclpy.node import Node
 
 from typing import List
 from unitree_go.msg import LowCmd
+from unitree_sdk2py.utils.crc import CRC
 
 class Go2RobotInterface():
     # TODO: Populate this array programmatically
@@ -20,6 +21,7 @@ class Go2RobotInterface():
         self.node = node
         self.publisher =  self.node.create_publisher(LowCmd, "lowcmd", 10)
 
+        self.crc = CRC()
         # TODO: Add a callback to joint_states and verify that robots is within safety bounds
 
     def init(self, q_start: List[float]):
@@ -77,14 +79,15 @@ class Go2RobotInterface():
 
         for i in range(12, 20): # Unused motors
             msg.motor_cmd[i].mode = 0x00 #Set passive mode
-            msg.motor_cmd[i].q = 0
-            msg.motor_cmd[i].dq = 0
-            msg.motor_cmd[i].tau = 0
-            msg.motor_cmd[i].kp = 0
-            msg.motor_cmd[i].kd = 0
+            msg.motor_cmd[i].q = 0.
+            msg.motor_cmd[i].dq = 0.
+            msg.motor_cmd[i].tau = 0.
+            msg.motor_cmd[i].kp = 0.
+            msg.motor_cmd[i].kd = 0.
 
         # Compute CRC here
-        msg.crc = 0x123 # TODO: Actually compute the CRC
+        # TODO: Cleaner CRC computation
+        msg.crc = self.crc._CRC__Crc32(self.crc._CRC__PackLowCmd(msg))
         self.node.publisher.publish(msg)
 
     def __go_to_configuration__(self, q: List[float], duration: float):
