@@ -20,10 +20,11 @@ class Go2RobotInterface():
         self.node = node
         self.publisher =  self.node.create_publisher(LowCmd, "lowcmd", 10)
 
+        # TODO: Add a callback to joint_states and verify that robots is within safety bounds
+
     def init(self, q_start: List[float]):
         # TODO: Disable sportsmode controller
-        # TODO: go to q_start
-
+        self.__go_to_configuration__(q_start, 2.0)
         self.is_init = True
         pass
 
@@ -37,6 +38,8 @@ class Go2RobotInterface():
         assert len(tau) == 12, "Wrong configuration size"
         assert len(kp) == 12, "Wrong configuration size"
         assert len(kd) == 12, "Wrong configuration size"
+
+        # TODO: Add a sanity check on robot pos/vel/acc
 
         msg = LowCmd()
 
@@ -81,5 +84,9 @@ class Go2RobotInterface():
             msg.motor_cmd[i].kd = 0
 
         # Compute CRC here
-        msg.crc = 0x123
+        msg.crc = 0x123 # TODO: Actually compute the CRC
         self.node.publisher.publish(msg)
+
+    def __go_to_configuration__(self, q: List[float], duration: float):
+        # TODO: implement
+        pass
