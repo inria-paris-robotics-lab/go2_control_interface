@@ -1,8 +1,9 @@
 import rclpy
 from rclpy.node import Node
+from rclpy.duration import Duration
 
 from typing import List
-from unitree_go.msg import LowCmd
+from unitree_go.msg import LowCmd, LowState
 from unitree_sdk2py.utils.crc import CRC
 
 class Go2RobotInterface():
@@ -20,6 +21,8 @@ class Go2RobotInterface():
 
         self.node = node
         self.publisher =  self.node.create_publisher(LowCmd, "lowcmd", 10)
+        self.subscription =  self.node.create_subscription(LowState, "lowstate", self.__state_cb, 10)
+        self.last_state = None
 
         self.crc = CRC()
         # TODO: Add a callback to joint_states and verify that robots is within safety bounds
@@ -35,6 +38,9 @@ class Go2RobotInterface():
 
     def send_command(self, q: List[float], v: List[float], tau: List[float], kp: List[float], kd: List[float]):
         assert self.is_init, "Go2RobotInterface not init-ed, call init(q_start) first"
+        self.__send_command(q,v,tau,kp,kd)
+
+    def __send_command(self, q: List[float], v: List[float], tau: List[float], kp: List[float], kd: List[float]):
         assert len(q) == 12, "Wrong configuration size"
         assert len(v) == 12, "Wrong configuration size"
         assert len(tau) == 12, "Wrong configuration size"
@@ -88,8 +94,31 @@ class Go2RobotInterface():
         # Compute CRC here
         # TODO: Cleaner CRC computation
         msg.crc = self.crc._CRC__Crc32(self.crc._CRC__PackLowCmd(msg))
-        self.node.publisher.publish(msg)
+        self.publisher.publish(msg)
+
+    def __state_cb(self, msg: LowState):
+        self.last_state = msg
+        # TODO: add some checks for safety
 
     def __go_to_configuration__(self, q: List[float], duration: float):
-        # TODO: implement
-        pass
+        for i in range(5):
+            if self.last_state is not None:
+                break
+            self.node.get_clock().sleep_for(Duration(seconds=.5)) # Wait for first configuration to be received
+        else:
+            assert False, "Robot state not received in time for initialization of interface."
+
+        q_goal = q
+        q_start = [self.last_state.motor_state[i].q for i in self.__ros_to_urdf_index]
+
+        t_start = self.node.get_clock().now()
+        while(True):
+            t = self.node.get_clock().now()
+            ratio = (t - t_start).nanoseconds / (duration * 1e9)
+            ratio = min(ratio, 1)
+
+            q_des = [q_start[i] + (q_goal[i] - q_start[i]) * ratio for i in range(12)]
+            self.__send_command(q_des, [0.]*12, [0.]*12, [10.]*12, [.1]*12)
+
+            if(ratio == 1):
+                break
