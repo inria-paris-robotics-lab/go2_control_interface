@@ -6,6 +6,8 @@ from typing import List
 from unitree_go.msg import LowCmd, LowState
 from unitree_sdk2py.utils.crc import CRC
 
+from copy import deepcopy
+
 class Go2RobotInterface():
     # TODO: Populate this array programmatically
     __ros_to_urdf_index = [
@@ -39,6 +41,10 @@ class Go2RobotInterface():
     def send_command(self, q: List[float], v: List[float], tau: List[float], kp: List[float], kd: List[float]):
         assert self.is_init, "Go2RobotInterface not init-ed, call init(q_start) first"
         self.__send_command(q,v,tau,kp,kd)
+
+    def get_joint_state(self):
+        state = deepcopy(self.last_state)
+        return state
 
     def __send_command(self, q: List[float], v: List[float], tau: List[float], kp: List[float], kd: List[float]):
         assert len(q) == 12, "Wrong configuration size"
@@ -97,19 +103,24 @@ class Go2RobotInterface():
         self.publisher.publish(msg)
 
     def __state_cb(self, msg: LowState):
-        self.last_state = msg
+        t = self.node.get_clock().now().nanoseconds / 1.e9
+        q_urdf = [msg.motor_state[i].q for i in self.__ros_to_urdf_index]
+        v_urdf = [msg.motor_state[i].dq for i in self.__ros_to_urdf_index]
+        tau_urdf = [msg.motor_state[i].tau for i in self.__ros_to_urdf_index]
+
+        self.last_state = t, q_urdf, v_urdf, tau_urdf
         # TODO: add some checks for safety
 
     def __go_to_configuration__(self, q: List[float], duration: float):
         for i in range(5):
-            if self.last_state is not None:
+            if self.get_joint_state() is not None:
                 break
             self.node.get_clock().sleep_for(Duration(seconds=.5)) # Wait for first configuration to be received
         else:
             assert False, "Robot state not received in time for initialization of interface."
 
         q_goal = q
-        q_start = [self.last_state.motor_state[i].q for i in self.__ros_to_urdf_index]
+        q_start = self.get_joint_state()[1]
 
         t_start = self.node.get_clock().now()
         while(True):
