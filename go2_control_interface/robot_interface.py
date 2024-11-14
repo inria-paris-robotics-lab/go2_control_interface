@@ -2,7 +2,7 @@ import rclpy
 from rclpy.node import Node
 from rclpy.duration import Duration
 
-from typing import List
+from typing import List, Tuple
 from unitree_go.msg import LowCmd, LowState
 from unitree_sdk2py.utils.crc import CRC
 
@@ -24,7 +24,7 @@ class Go2RobotInterface():
         self.node = node
         self.publisher =  self.node.create_publisher(LowCmd, "lowcmd", 10)
         self.subscription =  self.node.create_subscription(LowState, "lowstate", self.__state_cb, 10)
-        self.last_state = None
+        self.last_state_tqva = None
 
         self.crc = CRC()
         # TODO: Add a callback to joint_states and verify that robots is within safety bounds
@@ -42,8 +42,8 @@ class Go2RobotInterface():
         assert self.is_init, "Go2RobotInterface not init-ed, call init(q_start) first"
         self.__send_command(q,v,tau,kp,kd)
 
-    def get_joint_state(self):
-        state = deepcopy(self.last_state)
+    def get_joint_state(self) -> Tuple[float, List[float], List[float], List[float]]:
+        state = deepcopy(self.last_state_tqva)
         return state
 
     def __send_command(self, q: List[float], v: List[float], tau: List[float], kp: List[float], kd: List[float]):
@@ -106,9 +106,9 @@ class Go2RobotInterface():
         t = self.node.get_clock().now().nanoseconds / 1.e9
         q_urdf = [msg.motor_state[i].q for i in self.__ros_to_urdf_index]
         v_urdf = [msg.motor_state[i].dq for i in self.__ros_to_urdf_index]
-        tau_urdf = [msg.motor_state[i].tau for i in self.__ros_to_urdf_index]
+        a_urdf = [msg.motor_state[i].ddq for i in self.__ros_to_urdf_index]
 
-        self.last_state = t, q_urdf, v_urdf, tau_urdf
+        self.last_state_tqva = t, q_urdf, v_urdf, a_urdf
         # TODO: add some checks for safety
 
     def __go_to_configuration__(self, q: List[float], duration: float):
