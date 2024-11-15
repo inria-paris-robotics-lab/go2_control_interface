@@ -29,7 +29,7 @@ class Go2RobotInterface():
         self.crc = CRC()
         # TODO: Add a callback to joint_states and verify that robots is within safety bounds
 
-    def init(self, q_start: List[float]):
+    def start(self, q_start: List[float]):
         # TODO: Disable sportsmode controller
         self.__go_to_configuration__(q_start, 2.0)
         self.is_init = True
@@ -39,7 +39,7 @@ class Go2RobotInterface():
         self.scaling = scaling
 
     def send_command(self, q: List[float], v: List[float], tau: List[float], kp: List[float], kd: List[float]):
-        assert self.is_init, "Go2RobotInterface not init-ed, call init(q_start) first"
+        assert self.is_init, "Go2RobotInterface not start-ed, call start(q_start) first"
         self.__send_command(q,v,tau,kp,kd)
 
     def get_joint_state(self) -> Tuple[float, List[float], List[float], List[float]]:
