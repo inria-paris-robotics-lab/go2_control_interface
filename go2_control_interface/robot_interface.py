@@ -41,13 +41,13 @@ class Go2RobotInterface():
 
     def send_command(self, q: List[float], v: List[float], tau: List[float], kp: List[float], kd: List[float]):
         assert self.is_init, "Go2RobotInterface not start-ed, call start(q_start) first"
-        self.__send_command(q,v,tau,kp,kd, self.scaling)
+        self._send_command(q,v,tau,kp,kd, self.scaling)
 
     def get_joint_state(self) -> Tuple[float, List[float], List[float], List[float]]:
         state = deepcopy(self.last_state_tqva)
         return state
 
-    def __send_command(self, q: List[float], v: List[float], tau: List[float], kp: List[float], kd: List[float], scale: float):
+    def _send_command(self, q: List[float], v: List[float], tau: List[float], kp: List[float], kd: List[float], scale: float):
         assert len(q) == 12, "Wrong configuration size"
         assert len(v) == 12, "Wrong configuration size"
         assert len(tau) == 12, "Wrong configuration size"
@@ -112,7 +112,7 @@ class Go2RobotInterface():
         self.last_state_tqva = t, q_urdf, v_urdf, a_urdf
         # TODO: add some checks for safety
 
-    def __go_to_configuration__(self, q: List[float], duration: float):
+    def _go_to_configuration__(self, q: List[float], duration: float):
         for i in range(5):
             if self.get_joint_state() is not None:
                 break
@@ -130,7 +130,7 @@ class Go2RobotInterface():
             ratio = min(ratio, 1)
 
             q_des = [q_start[i] + (q_goal[i] - q_start[i]) * ratio for i in range(12)]
-            self.__send_command(q_des, [0.]*12, [0.]*12, [150.]*12, [1.]*12, 1.0)
+            self._send_command(q_des, [0.]*12, [0.]*12, [150.]*12, [1.]*12, self.scaling)
 
             if(ratio == 1):
                 break
