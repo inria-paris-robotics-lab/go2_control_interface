@@ -28,6 +28,8 @@ class WatchDogNode(Node, Go2RobotInterface):
     def __start_cb(self, msg):
         # Acting as an e-stop
         if not msg.data:
+            self.get_logger().error("E-stop pressed.")
+            self.is_waiting = False
             self.is_stopped = True
             return
 
