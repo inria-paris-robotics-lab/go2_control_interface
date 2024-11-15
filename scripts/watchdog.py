@@ -3,9 +3,9 @@
 import rclpy
 from rclpy.node import Node
 from go2_control_interface.robot_interface import Go2RobotInterface
-import threading
 from unitree_go.msg import LowCmd
 from std_msgs.msg import Bool
+from rclpy.qos import QoSProfile, QoSDurabilityPolicy
 
 
 class WatchDogNode(Node, Go2RobotInterface):
@@ -21,9 +21,11 @@ class WatchDogNode(Node, Go2RobotInterface):
         self.is_stopped = False
         self.is_waiting = False
 
-        self.lowcmd_subscription =  self.create_subscription(LowCmd, "lowcmd", self.__cmd_cb, 10)
+        self.lowcmd_subscription =  self.create_subscription(LowCmd, "/lowcmd", self.__cmd_cb, 10)
         self.start_subscription =  self.create_subscription(Bool, "/watchdog/start", self.__start_cb, 10)
         self.timer = self.create_timer(1./self.freq, self.timer_callback)
+
+        self.issafe_publisher =  self.create_publisher(Bool, "/watchdog/is_safe", QoSProfile(depth=10, durability=QoSDurabilityPolicy.TRANSIENT_LOCAL))
 
     def __start_cb(self, msg):
         # Acting as an e-stop
@@ -37,6 +39,11 @@ class WatchDogNode(Node, Go2RobotInterface):
         self.is_waiting = True
         self.is_stopped = False
         self.get_logger().warning("Watch-dog ready, waiting for /lowcmd")
+
+        # Send info to other nodes
+        issafe_msg = Bool()
+        issafe_msg.data = True
+        self.issafe_publisher.publish(issafe_msg)
 
 
     def __cmd_cb(self, msg):
@@ -65,6 +72,10 @@ class WatchDogNode(Node, Go2RobotInterface):
 
     def _kill_robot(self):
         self._send_command([0.]*12, [0.]*12, [0.]*12, [0.]*12, [1.]*12, 1.0)
+        # Send info to other nodes
+        issafe_msg = Bool()
+        issafe_msg.data = False
+        self.issafe_publisher.publish(issafe_msg)
 
 def main(args=None):
     rclpy.init(args=args)
