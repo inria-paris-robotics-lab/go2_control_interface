@@ -4,6 +4,7 @@ from rclpy.duration import Duration
 
 from typing import List, Tuple
 from unitree_go.msg import LowCmd, LowState
+from std_msgs.msg import Bool
 from unitree_sdk2py.utils.crc import CRC
 
 from copy import deepcopy
@@ -21,8 +22,9 @@ class Go2RobotInterface():
         self.is_init = False
 
         self.node = node
-        self.publisher =  self.node.create_publisher(LowCmd, "lowcmd", 10)
-        self.subscription =  self.node.create_subscription(LowState, "lowstate", self.__state_cb, 10)
+        self._watchdog_publisher =  self.node.create_publisher(Bool, "/watchdog/start", 10)
+        self._cmd_publisher =  self.node.create_publisher(LowCmd, "lowcmd", 10)
+        self._state_subscription =  self.node.create_subscription(LowState, "lowstate", self.__state_cb, 10)
         self.last_state_tqva = None
 
         self.scaling = self.node.declare_parameter("cmd_scaling", 1.0).value
@@ -32,7 +34,10 @@ class Go2RobotInterface():
 
     def start(self, q_start: List[float]):
         # TODO: Disable sportsmode controller
-        self.__go_to_configuration__(q_start, 2.0)
+        arm_watchdog_msg = Bool()
+        arm_watchdog_msg.data = True
+        self._watchdog_publisher.publish(arm_watchdog_msg) # Arm watchdog
+        self._go_to_configuration__(q_start, 5.0)
         self.is_init = True
         pass
 
@@ -101,7 +106,7 @@ class Go2RobotInterface():
         # Compute CRC here
         # TODO: Cleaner CRC computation
         msg.crc = self.crc._CRC__Crc32(self.crc._CRC__PackLowCmd(msg))
-        self.publisher.publish(msg)
+        self._cmd_publisher.publish(msg)
 
     def __state_cb(self, msg: LowState):
         t = self.node.get_clock().now().nanoseconds / 1.e9
