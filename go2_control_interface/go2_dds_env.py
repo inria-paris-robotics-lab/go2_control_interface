@@ -9,6 +9,9 @@ from go2_netwif import Go2NetworkInfo
 import importlib, pathlib
 import importlib.util
 
+import rospkg
+
+
 class Go2EnvSetup():
 
 
@@ -42,15 +45,15 @@ class Go2EnvSetup():
             print (f'  - {pypath}', file=sys.stderr)
 
     def generateEnv(self):
-        script_path = pathlib.Path(__file__).parent.resolve()
-        process_path = pathlib.Path().resolve()
+        rp = rospkg.RosPack()
+        cyclonedds_package_path = rp.get_path('cyclonedds')
 
         go2_net_info = Go2NetworkInfo()
         ifname = go2_net_info.getGo2InterfaceName()
 
         print (f'\nSetup commands\n', file=sys.stderr)
         print (f'source {script_path}/../../../install.bash;')
-        print (f'export CYCLONEDDS_HOME={script_path}/../../../cyclonedds/;')
+        print (f'export CYCLONEDDS_HOME={cyclonedds_package_path};')
         print (f'export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp;')
         print (f'export CYCLONEDDS_URI=\'<CycloneDDS><Domain><General><Interfaces><NetworkInterface name="{ifname}" priority="default" multicast="default" /></Interfaces></General></Domain></CycloneDDS>\';')
 
