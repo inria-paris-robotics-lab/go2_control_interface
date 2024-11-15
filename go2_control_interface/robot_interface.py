@@ -19,12 +19,13 @@ class Go2RobotInterface():
 
     def __init__(self, node: Node):
         self.is_init = False
-        self.scaling = 1.0
 
         self.node = node
         self.publisher =  self.node.create_publisher(LowCmd, "lowcmd", 10)
         self.subscription =  self.node.create_subscription(LowState, "lowstate", self.__state_cb, 10)
         self.last_state_tqva = None
+
+        self.scaling = self.node.declare_parameter("cmd_scaling", 1.0).value
 
         self.crc = CRC()
         # TODO: Add a callback to joint_states and verify that robots is within safety bounds
@@ -40,13 +41,13 @@ class Go2RobotInterface():
 
     def send_command(self, q: List[float], v: List[float], tau: List[float], kp: List[float], kd: List[float]):
         assert self.is_init, "Go2RobotInterface not start-ed, call start(q_start) first"
-        self.__send_command(q,v,tau,kp,kd)
+        self.__send_command(q,v,tau,kp,kd, self.scaling)
 
     def get_joint_state(self) -> Tuple[float, List[float], List[float], List[float]]:
         state = deepcopy(self.last_state_tqva)
         return state
 
-    def __send_command(self, q: List[float], v: List[float], tau: List[float], kp: List[float], kd: List[float]):
+    def __send_command(self, q: List[float], v: List[float], tau: List[float], kp: List[float], kd: List[float], scale: float):
         assert len(q) == 12, "Wrong configuration size"
         assert len(v) == 12, "Wrong configuration size"
         assert len(tau) == 12, "Wrong configuration size"
@@ -85,9 +86,9 @@ class Go2RobotInterface():
             msg.motor_cmd[i].mode = 0x01 #Set toque mode
             msg.motor_cmd[i].q = q[i_urdf]
             msg.motor_cmd[i].dq = v[i_urdf]
-            msg.motor_cmd[i].tau = self.scaling * tau[i_urdf]
-            msg.motor_cmd[i].kp = self.scaling * kp[i_urdf]
-            msg.motor_cmd[i].kd = self.scaling * kd[i_urdf]
+            msg.motor_cmd[i].tau = scale * tau[i_urdf]
+            msg.motor_cmd[i].kp = scale * kp[i_urdf]
+            msg.motor_cmd[i].kd = scale * kd[i_urdf]
 
         for i in range(12, 20): # Unused motors
             msg.motor_cmd[i].mode = 0x00 #Set passive mode
@@ -129,7 +130,7 @@ class Go2RobotInterface():
             ratio = min(ratio, 1)
 
             q_des = [q_start[i] + (q_goal[i] - q_start[i]) * ratio for i in range(12)]
-            self.__send_command(q_des, [0.]*12, [0.]*12, [10.]*12, [.1]*12)
+            self.__send_command(q_des, [0.]*12, [0.]*12, [150.]*12, [1.]*12, 1.0)
 
             if(ratio == 1):
                 break
