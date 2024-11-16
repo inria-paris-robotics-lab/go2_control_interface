@@ -45,7 +45,7 @@ class Go2RobotInterface():
 
         self.node.get_logger().info("Waiting for watchdog to be armed...")
         while(not self.is_safe and rclpy.ok()):
-            rclpy.spin_once(self.node)
+            self.node.get_clock().sleep_for(Duration(seconds=.1))
 
         self.node.get_logger().info("Going to start configuration...")
         self._go_to_configuration__(q_start, 5.0)
