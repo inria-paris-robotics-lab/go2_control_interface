@@ -12,13 +12,12 @@ class WatchDogNode(Node, Go2RobotInterface):
     The watchdog has 3 states :
      state | is_stopped | is_waiting | description
     -------|------------|------------|------------
-       A   |     0      |     1      | The watchdog is armed, check for joints bounds, but not for timeouts
-       B   |     0      |     0      | The watchdog is running, check for joints bounds and timeout
+       A   |     0      |     1      | The watchdog is armed, ready to start, but not actually checking
+       B   |     0      |     0      | The watchdog is running, check joints bounds and timeout
        C   |     1      |     -      | The watchdog spam stops commands
 
     The transitions are as follow:
     A -> B : if a msg is received on /lowcmd
-    A -> C : if joint bounds are exceeded
     B -> C : if the joint bounds or the timeout is exceeded
     any -> C : if a False is received on /watchdog/arm
     any -> A : if a True is received on /watchdog/arm
@@ -69,6 +68,20 @@ class WatchDogNode(Node, Go2RobotInterface):
         self.cnt = 0 # Reset timeout
 
     def timer_callback(self):
+        # If stopped, spam damping command
+        if self.is_stopped:
+            self._send_kill_cmd()
+            return
+
+        if self.is_waiting:
+            # No check needs to be done
+            return
+
+        # Timeout
+        self.cnt += 1
+        if self.cnt >= self.n_fail:
+            self._stop_robot("Watch-dog timer reached.")
+
         # Joint bounds
         tqva = self.get_joint_state()
         if tqva is not None:
@@ -85,16 +98,6 @@ class WatchDogNode(Node, Go2RobotInterface):
                 self._stop_robot(f"Watch-dog detect joint {[i for i, b in enumerate(dq_max_bound) if b]} out of bounds. (max dq)")
             # TODO: Add check on tau (look at cmd ??)
 
-
-        # Timeout
-        if not self.is_waiting:
-            self.cnt += 1
-            if self.cnt >= self.n_fail:
-                self._stop_robot("Watch-dog timer reached.")
-
-        # If stopped, spam damping command
-        if self.is_stopped:
-            self._send_kill_cmd()
 
     def _arm_watchdog(self):
         # Arming the watchdog
