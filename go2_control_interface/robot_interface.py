@@ -42,9 +42,10 @@ class Go2RobotInterface():
         arm_watchdog_msg = Bool()
         arm_watchdog_msg.data = True
         self._watchdog_publisher.publish(arm_watchdog_msg)
-        # Wait for watchdog to be armed
+
+        self.node.get_logger().info("Waiting for watchdog to be armed...")
         while(not self.is_safe and rclpy.ok()):
-            self.node.get_clock().sleep_for(Duration(seconds=.1))
+            rclpy.spin_once(self.node)
 
         self.node.get_logger().info("Going to start configuration...")
         self._go_to_configuration__(q_start, 5.0)
@@ -57,7 +58,7 @@ class Go2RobotInterface():
 
     def send_command(self, q: List[float], v: List[float], tau: List[float], kp: List[float], kd: List[float]):
         assert self.is_init, "Go2RobotInterface not start-ed, call start(q_start) first"
-        assert(self.is_safe, "Soft e-stop sent by watchdog, ignoring command")
+        assert self.is_safe, "Soft e-stop sent by watchdog, ignoring command"
         self._send_command(q,v,tau,kp,kd, self.scaling)
 
     def get_joint_state(self) -> Tuple[float, List[float], List[float], List[float]]:
@@ -139,7 +140,7 @@ class Go2RobotInterface():
         q_start = self.get_joint_state()[1]
 
         t_start = self.node.get_clock().now()
-        while(True):
+        while(rclpy.ok()):
             t = self.node.get_clock().now()
             ratio = (t - t_start).nanoseconds / (duration * 1e9)
             ratio = min(ratio, 1)
