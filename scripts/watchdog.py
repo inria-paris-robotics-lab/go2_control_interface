@@ -38,10 +38,10 @@ class WatchDogNode(Node, Go2RobotInterface):
         # Safety values
         self.q_max = self.declare_parameter("q_max", [0.]).value
         self.q_min = self.declare_parameter("q_min", [0.]).value
-        self.v_max = self.declare_parameter("v_max", -1.).value
+        self.dq_max = self.declare_parameter("dq_max", -1.).value
         assert len(self.q_max) == 12, "Parameter q_max should be length 12"
         assert len(self.q_min) == 12, "Parameter q_min should be length 12"
-        assert self.v_max >= 0., "Parameter v_max should be non negative"
+        assert self.dq_max >= 0., "Parameter dq_max should be non negative"
 
         # Watchdog timer logic
         self.cnt = 0
@@ -72,13 +72,19 @@ class WatchDogNode(Node, Go2RobotInterface):
         # Joint bounds
         tqva = self.get_joint_state()
         if tqva is not None:
-            _, q, v, _ = tqva
-            out_of_bounds = any([q[i] < self.q_min[i] or
-                                q[i] > self.q_max[i] or
-                                abs(v[i]) > self.v_max for i in range(12)])
+            _, q, dq, _ = tqva
+            q_max_bound = [q_i > self.q_max[i] for i, q_i in enumerate(q)]
+            q_min_bound = [q_i < self.q_min[i] for i, q_i in enumerate(q)]
+            dq_max_bound = [abs(dq_i) > self.dq_max for dq_i in dq]
+
+            if any(q_max_bound):
+                self._stop_robot(f"Watch-dog detect joint {[i for i, b in enumerate(q_max_bound) if b]} out of bounds. (max q)")
+            if any(q_min_bound):
+                self._stop_robot(f"Watch-dog detect joint {[i for i, b in enumerate(q_min_bound) if b]} out of bounds. (min q)")
+            if any(dq_max_bound):
+                self._stop_robot(f"Watch-dog detect joint {[i for i, b in enumerate(dq_max_bound) if b]} out of bounds. (max dq)")
             # TODO: Add check on tau (look at cmd ??)
-            if out_of_bounds:
-                self._stop_robot("Watch-dog detect joint out of bounds.")
+
 
         # Timeout
         if not self.is_waiting:
