@@ -8,7 +8,25 @@ from std_msgs.msg import Bool
 from rclpy.qos import QoSProfile, QoSDurabilityPolicy
 
 class WatchDogNode(Node, Go2RobotInterface):
+    """
+    The watchdog has 3 states :
+     state | is_stopped | is_waiting | description
+    -------|------------|------------|------------
+       A   |     0      |     1      | The watchdog is armed, check for joints bounds, but not for timeouts
+       B   |     0      |     0      | The watchdog is running, check for joints bounds and timeout
+       C   |     1      |     -      | The watchdog spam stops commands
 
+    The transitions are as follow:
+    A -> B : if a msg is received on /lowcmd
+    A -> C : if joint bounds are exceeded
+    B -> C : if the joint bounds or the timeout is exceeded
+    any -> C : if a False is received on /watchdog/arm
+    any -> A : if a True is received on /watchdog/arm
+
+    The topics are published as follow :
+    A or B -> is_safe set to True, no command sent to the robot
+    C -> is_safe set to False, damping commands spammed to the robot
+    """
     def __init__(self):
         Node.__init__(self, "watchdog")
         Go2RobotInterface.__init__(self, self)
@@ -31,35 +49,24 @@ class WatchDogNode(Node, Go2RobotInterface):
         self.is_waiting = False
 
         self.lowcmd_subscription =  self.create_subscription(LowCmd, "/lowcmd", self.__cmd_cb, 10)
-        self.start_subscription =  self.create_subscription(Bool, "/watchdog/start", self.__start_cb, 10)
+        self.start_subscription =  self.create_subscription(Bool, "/watchdog/arm", self.__arm_disarm_cb, 10)
         self.timer = self.create_timer(1./self.freq, self.timer_callback)
 
-        self.issafe_publisher =  self.create_publisher(Bool, "/watchdog/is_safe", QoSProfile(depth=10, durability=QoSDurabilityPolicy.TRANSIENT_LOCAL))
+        self._is_safe_publisher =  self.create_publisher(Bool, "/watchdog/is_safe", QoSProfile(depth=10, durability=QoSDurabilityPolicy.TRANSIENT_LOCAL))
 
-    def __start_cb(self, msg):
+    def __arm_disarm_cb(self, msg):
         # Acting as an e-stop
         if not msg.data:
             self._stop_robot("E-stop pressed.")
-
-        # Arming the watchdog
-        self.cnt = 0
-        self.is_waiting = True
-        self.is_stopped = False
-        self.get_logger().warning("Watch-dog ready, waiting for /lowcmd")
-
-        # Send info to other nodes
-        issafe_msg = Bool()
-        issafe_msg.data = True
-        self.issafe_publisher.publish(issafe_msg)
-
+        else:
+            self._arm_watchdog()
 
     def __cmd_cb(self, msg):
         if self.is_waiting:
-            self.get_logger().warning("First command received on /lowcmd, watchdog armed")
+            self.get_logger().warning("First command received on /lowcmd, watchdog running")
 
         self.is_waiting = False
-        self.cnt = 0
-
+        self.cnt = 0 # Reset timeout
 
     def timer_callback(self):
         # Joint bounds
@@ -75,15 +82,25 @@ class WatchDogNode(Node, Go2RobotInterface):
 
         # Timeout
         if not self.is_waiting:
-            # Does not count if the watchdog is waiting for the first command
             self.cnt += 1
-
-        if self.cnt >= self.n_fail:
-            self._stop_robot("Watch-dog timer reached.")
+            if self.cnt >= self.n_fail:
+                self._stop_robot("Watch-dog timer reached.")
 
         # If stopped, spam damping command
         if self.is_stopped:
             self._send_kill_cmd()
+
+    def _arm_watchdog(self):
+        # Arming the watchdog
+        self.cnt = 0
+        self.is_waiting = True
+        self.is_stopped = False
+        self.get_logger().warning("Watch-dog armed, waiting for /lowcmd")
+
+        # Send info to other nodes
+        is_safe_msg = Bool()
+        is_safe_msg.data = True
+        self._is_safe_publisher.publish(is_safe_msg)
 
     def _stop_robot(self, msg_str):
         self._send_kill_cmd() # ASAP
@@ -95,9 +112,9 @@ class WatchDogNode(Node, Go2RobotInterface):
     def _send_kill_cmd(self):
         self._send_command([0.]*12, [0.]*12, [0.]*12, [0.]*12, [1.]*12, 1.0)
         # Send info to other nodes
-        issafe_msg = Bool()
-        issafe_msg.data = False
-        self.issafe_publisher.publish(issafe_msg)
+        is_safe_msg = Bool()
+        is_safe_msg.data = False
+        self._is_safe_publisher.publish(is_safe_msg)
 
 def main(args=None):
     rclpy.init(args=args)

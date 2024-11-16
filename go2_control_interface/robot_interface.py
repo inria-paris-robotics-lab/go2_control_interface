@@ -24,7 +24,7 @@ class Go2RobotInterface():
 
         self.node = node
 
-        self._watchdog_publisher =  self.node.create_publisher(Bool, "/watchdog/start", 10)
+        self._watchdog_publisher =  self.node.create_publisher(Bool, "/watchdog/arm", 10)
         self._watchdog_subscription =  self.node.create_subscription(Bool, "/watchdog/is_safe", self.__safety_cb, 10)
 
         self._cmd_publisher =  self.node.create_publisher(LowCmd, "lowcmd", 10)
