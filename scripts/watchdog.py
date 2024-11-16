@@ -7,16 +7,25 @@ from unitree_go.msg import LowCmd
 from std_msgs.msg import Bool
 from rclpy.qos import QoSProfile, QoSDurabilityPolicy
 
-
 class WatchDogNode(Node, Go2RobotInterface):
 
     def __init__(self):
-        Node.__init__(self, "damp_joint_node")
+        Node.__init__(self, "watchdog")
         Go2RobotInterface.__init__(self, self)
 
+        # Watchdog timer parameters
         self.freq = self.declare_parameter("freq", 100).value
         self.n_fail = self.declare_parameter("n_fail", 2).value
 
+        # Safety values
+        self.q_max = self.declare_parameter("q_max", [0.]).value
+        self.q_min = self.declare_parameter("q_min", [0.]).value
+        self.v_max = self.declare_parameter("v_max", -1.).value
+        assert len(self.q_max) == 12, "Parameter q_max should be length 12"
+        assert len(self.q_min) == 12, "Parameter q_min should be length 12"
+        assert self.v_max >= 0., "Parameter v_max should be non negative"
+
+        # Watchdog timer logic
         self.cnt = 0
         self.is_stopped = False
         self.is_waiting = False
@@ -30,12 +39,10 @@ class WatchDogNode(Node, Go2RobotInterface):
     def __start_cb(self, msg):
         # Acting as an e-stop
         if not msg.data:
-            self.get_logger().error("E-stop pressed.")
-            self.is_waiting = False
-            self.is_stopped = True
-            return
+            self._stop_robot("E-stop pressed.")
 
         # Arming the watchdog
+        self.cnt = 0
         self.is_waiting = True
         self.is_stopped = False
         self.get_logger().warning("Watch-dog ready, waiting for /lowcmd")
@@ -55,22 +62,37 @@ class WatchDogNode(Node, Go2RobotInterface):
 
 
     def timer_callback(self):
-        # Does not count is the watchdog is armed and wait for the first command
+        # Joint bounds
+        tqva = self.get_joint_state()
+        if tqva is not None:
+            _, q, v, _ = tqva
+            out_of_bounds = any([q[i] < self.q_min[i] or
+                                q[i] > self.q_max[i] or
+                                abs(v[i]) > self.v_max for i in range(12)])
+            # TODO: Add check on tau (look at cmd ??)
+            if out_of_bounds:
+                self._stop_robot("Watch-dog detect joint out of bounds.")
+
+        # Timeout
         if not self.is_waiting:
+            # Does not count if the watchdog is waiting for the first command
             self.cnt += 1
 
-        # If the counter exceed, trigger stop
         if self.cnt >= self.n_fail:
-            self._kill_robot() # ASAP
-            if not self.is_stopped:
-                self.get_logger().error("Watch-dog reach sending damping to all joints, spamming")
-            self.is_stopped = True
+            self._stop_robot("Watch-dog timer reached.")
 
-        # If stopped send damping command
+        # If stopped, spam damping command
         if self.is_stopped:
-            self._kill_robot()
+            self._send_kill_cmd()
 
-    def _kill_robot(self):
+    def _stop_robot(self, msg_str):
+        self._send_kill_cmd() # ASAP
+        if not self.is_stopped:
+            self.get_logger().error(msg_str + " Stopping robot.")
+        self.is_stopped = True
+        self.is_waiting = False
+
+    def _send_kill_cmd(self):
         self._send_command([0.]*12, [0.]*12, [0.]*12, [0.]*12, [1.]*12, 1.0)
         # Send info to other nodes
         issafe_msg = Bool()

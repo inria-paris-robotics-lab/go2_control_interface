@@ -10,6 +10,8 @@ setup(
  data_files=[
      ('share/' + package_name, ['package.xml']),
      ('lib/' + package_name, glob("scripts/*.py")),
+     ('share/' + package_name + '/config', glob("config/*")),
+     ('share/' + package_name + '/launch', glob("launch/*")),
    ],
  install_requires=['setuptools'],
  zip_safe=True,
