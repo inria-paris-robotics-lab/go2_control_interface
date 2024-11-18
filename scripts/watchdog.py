@@ -119,7 +119,7 @@ class WatchDogNode(Node, Go2RobotInterface):
         self.is_waiting = False
 
     def _send_kill_cmd(self):
-        self._send_command([0.]*12, [0.]*12, [0.]*12, [0.]*12, [1.]*12, 1.0)
+        self._send_command([0.]*12, [0.]*12, [0.]*12, [0.]*12, [1.]*12, scaling = False)
         # Send info to other nodes
         is_safe_msg = Bool()
         is_safe_msg.data = False

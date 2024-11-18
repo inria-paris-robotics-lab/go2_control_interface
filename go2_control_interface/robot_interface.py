@@ -31,7 +31,9 @@ class Go2RobotInterface():
         self._state_subscription =  self.node.create_subscription(LowState, "lowstate", self.__state_cb, 10)
         self.last_state_tqva = None
 
-        self.scaling = self.node.declare_parameter("cmd_scaling", 1.0).value
+        self.scaling_glob = self.node.declare_parameter("scaling_glob", 1.0).value
+        self.scaling_gain = self.node.declare_parameter("scaling_gain", 1.0).value
+        self.scaling_ff = self.node.declare_parameter("scaling_ff", 1.0).value
 
         self.crc = CRC()
         # TODO: Add a callback to joint_states and verify that robots is within safety bounds
@@ -52,20 +54,16 @@ class Go2RobotInterface():
         self.node.get_logger().info("Start configuration reached.")
         self.is_init = True
 
-
-    def set_scaling(self, scaling: float):
-        self.scaling = scaling
-
     def send_command(self, q: List[float], v: List[float], tau: List[float], kp: List[float], kd: List[float]):
         assert self.is_init, "Go2RobotInterface not start-ed, call start(q_start) first"
         assert self.is_safe, "Soft e-stop sent by watchdog, ignoring command"
-        self._send_command(q,v,tau,kp,kd, self.scaling)
+        self._send_command(q,v,tau,kp,kd)
 
     def get_joint_state(self) -> Tuple[float, List[float], List[float], List[float]]:
         state = deepcopy(self.last_state_tqva)
         return state
 
-    def _send_command(self, q: List[float], v: List[float], tau: List[float], kp: List[float], kd: List[float], scale: float):
+    def _send_command(self, q: List[float], v: List[float], tau: List[float], kp: List[float], kd: List[float], scaling: Bool = True):
         assert len(q) == 12, "Wrong configuration size"
         assert len(v) == 12, "Wrong configuration size"
         assert len(tau) == 12, "Wrong configuration size"
@@ -96,15 +94,19 @@ class Go2RobotInterface():
         # Gpio
         msg.gpio = 0
 
+
+        # Scaling
+        k_ratio  = self.scaling_gain * self.scaling_glob if scaling else 1.0
+        ff_ratio = self.scaling_ff   * self.scaling_glob if scaling else 1.0
         for i in range(12):
             i_urdf = self.__ros_to_urdf_index[i] # Re-order joints
 
             msg.motor_cmd[i].mode = 0x01 #Set toque mode
             msg.motor_cmd[i].q = q[i_urdf]
             msg.motor_cmd[i].dq = v[i_urdf]
-            msg.motor_cmd[i].tau = scale * tau[i_urdf]
-            msg.motor_cmd[i].kp = scale * kp[i_urdf]
-            msg.motor_cmd[i].kd = scale * kd[i_urdf]
+            msg.motor_cmd[i].tau = ff_ratio * tau[i_urdf]
+            msg.motor_cmd[i].kp = k_ratio * kp[i_urdf]
+            msg.motor_cmd[i].kd = k_ratio * kd[i_urdf]
 
         for i in range(12, 20): # Unused motors
             msg.motor_cmd[i].mode = 0x00 #Set passive mode
@@ -146,7 +148,7 @@ class Go2RobotInterface():
             ratio = min(ratio, 1)
 
             q_des = [q_start[i] + (q_goal[i] - q_start[i]) * ratio for i in range(12)]
-            self._send_command(q_des, [0.]*12, [0.]*12, [150.]*12, [1.]*12, self.scaling)
+            self._send_command(q_des, [0.]*12, [0.]*12, [150.]*12, [1.]*12)
 
             if(ratio == 1):
                 break
