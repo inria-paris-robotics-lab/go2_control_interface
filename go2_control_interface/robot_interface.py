@@ -35,6 +35,8 @@ class Go2RobotInterface():
         self.scaling_gain = self.node.declare_parameter("scaling_gain", 1.0).value
         self.scaling_ff = self.node.declare_parameter("scaling_ff", 1.0).value
 
+        self.filter_fq = self.node.declare_parameter("joint_filter_fq", -1.0).value # By default no filter
+
         self.crc = CRC()
         # TODO: Add a callback to joint_states and verify that robots is within safety bounds
 
@@ -127,7 +129,21 @@ class Go2RobotInterface():
         v_urdf = [msg.motor_state[i].dq for i in self.__ros_to_urdf_index]
         a_urdf = [msg.motor_state[i].ddq for i in self.__ros_to_urdf_index]
 
-        self.last_state_tqva = t, q_urdf, v_urdf, a_urdf
+        last_tqva = self.last_state_tqva
+        if last_tqva is None or self.filter_fq <= 0.:
+            # No filtering to do on first point
+            self.last_state_tqva = t, q_urdf, v_urdf, a_urdf
+            return
+
+        t_prev, q_prev, v_prev, a_prev = last_tqva
+
+        b = 1. / (1 + 2 * 3.14 * (t - t_prev) * self.filter_fq)
+
+        q_filter = [(1-b) * q_urdf[i] + b * q_prev[i] for i in range(12)]
+        v_filter = [(1-b) * v_urdf[i] + b * v_prev[i] for i in range(12)]
+        a_filter = [(1-b) * a_urdf[i] + b * a_prev[i] for i in range(12)]
+
+        self.last_state_tqva = t, q_filter, v_filter, a_filter
         # TODO: add some checks for safety
 
     def _go_to_configuration__(self, q: List[float], duration: float):
