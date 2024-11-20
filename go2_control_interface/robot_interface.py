@@ -6,8 +6,7 @@ from typing import List, Callable
 from unitree_go.msg import LowCmd, LowState
 from std_msgs.msg import Bool
 from unitree_sdk2py.utils.crc import CRC
-
-from copy import deepcopy
+import threading
 
 class Go2RobotInterface():
     # TODO: Populate this array programmatically
@@ -19,7 +18,7 @@ class Go2RobotInterface():
         ] # re-ordering joints
 
     def __init__(self, node: Node):
-        self.is_init = False
+        self.is_ready = False
         self.is_safe = False
 
         self.node = node
@@ -44,7 +43,11 @@ class Go2RobotInterface():
     def register_callback(self, callback: Callable[[float, List[float], List[float], List[float]], None]):
         self.user_cb = callback
 
-    def start(self, q_start: List[float]):
+    def start_async(self, q_start: List[float]):
+        thread = threading.Thread(target=self.start_routine, args=(q_start, ), daemon=True)
+        thread.start()
+
+    def start_routine(self, q_start: List[float]):
         # TODO: Disable sportsmode controller
          # Arm watchdog
         arm_watchdog_msg = Bool()
@@ -58,10 +61,10 @@ class Go2RobotInterface():
         self.node.get_logger().info("Going to start configuration...")
         self._go_to_configuration__(q_start, 5.0)
         self.node.get_logger().info("Start configuration reached.")
-        self.is_init = True
+        self.is_ready = True
 
     def send_command(self, q: List[float], v: List[float], tau: List[float], kp: List[float], kd: List[float]):
-        assert self.is_init, "Go2RobotInterface not start-ed, call start(q_start) first"
+        assert self.is_ready, "Go2RobotInterface not start-ed, call start(q_start) first"
         assert self.is_safe, "Soft e-stop sent by watchdog, ignoring command"
         self._send_command(q,v,tau,kp,kd)
 
