@@ -2,7 +2,7 @@ import rclpy
 from rclpy.node import Node
 from rclpy.duration import Duration
 
-from typing import List, Tuple
+from typing import List, Callable
 from unitree_go.msg import LowCmd, LowState
 from std_msgs.msg import Bool
 from unitree_sdk2py.utils.crc import CRC
@@ -29,16 +29,20 @@ class Go2RobotInterface():
 
         self._cmd_publisher =  self.node.create_publisher(LowCmd, "lowcmd", 10)
         self._state_subscription =  self.node.create_subscription(LowState, "lowstate", self.__state_cb, 10)
-        self.last_state_tqva = None
 
         self.scaling_glob = self.node.declare_parameter("scaling_glob", 1.0).value
         self.scaling_gain = self.node.declare_parameter("scaling_gain", 1.0).value
         self.scaling_ff = self.node.declare_parameter("scaling_ff", 1.0).value
 
+        self.last_state_tqva = None
         self.filter_fq = self.node.declare_parameter("joint_filter_fq", -1.0).value # By default no filter
 
         self.crc = CRC()
+        self.user_cb = None
         # TODO: Add a callback to joint_states and verify that robots is within safety bounds
+
+    def register_callback(self, callback: Callable[[float, List[float], List[float], List[float]], None]):
+        self.user_cb = callback
 
     def start(self, q_start: List[float]):
         # TODO: Disable sportsmode controller
@@ -60,10 +64,6 @@ class Go2RobotInterface():
         assert self.is_init, "Go2RobotInterface not start-ed, call start(q_start) first"
         assert self.is_safe, "Soft e-stop sent by watchdog, ignoring command"
         self._send_command(q,v,tau,kp,kd)
-
-    def get_joint_state(self) -> Tuple[float, List[float], List[float], List[float]]:
-        state = deepcopy(self.last_state_tqva)
-        return state
 
     def _send_command(self, q: List[float], v: List[float], tau: List[float], kp: List[float], kd: List[float], scaling: Bool = True):
         assert len(q) == 12, "Wrong configuration size"
@@ -133,29 +133,30 @@ class Go2RobotInterface():
         if last_tqva is None or self.filter_fq <= 0.:
             # No filtering to do on first point
             self.last_state_tqva = t, q_urdf, v_urdf, a_urdf
-            return
+        else:
+            t_prev, q_prev, v_prev, a_prev = last_tqva
 
-        t_prev, q_prev, v_prev, a_prev = last_tqva
+            b = 1. / (1 + 2 * 3.14 * (t - t_prev) * self.filter_fq)
 
-        b = 1. / (1 + 2 * 3.14 * (t - t_prev) * self.filter_fq)
+            q_filter = [(1-b) * q_urdf[i] + b * q_prev[i] for i in range(12)]
+            v_filter = [(1-b) * v_urdf[i] + b * v_prev[i] for i in range(12)]
+            a_filter = [(1-b) * a_urdf[i] + b * a_prev[i] for i in range(12)]
 
-        q_filter = [(1-b) * q_urdf[i] + b * q_prev[i] for i in range(12)]
-        v_filter = [(1-b) * v_urdf[i] + b * v_prev[i] for i in range(12)]
-        a_filter = [(1-b) * a_urdf[i] + b * a_prev[i] for i in range(12)]
+            self.last_state_tqva = t, q_filter, v_filter, a_filter
 
-        self.last_state_tqva = t, q_filter, v_filter, a_filter
-        # TODO: add some checks for safety
+        if(self.user_cb is not None):
+            self.user_cb(*self.last_state_tqva)
 
     def _go_to_configuration__(self, q: List[float], duration: float):
         for i in range(5):
-            if self.get_joint_state() is not None:
+            if self.last_state_tqva is not None:
                 break
             self.node.get_clock().sleep_for(Duration(seconds=.5)) # Wait for first configuration to be received
         else:
             assert False, "Robot state not received in time for initialization of interface."
 
         q_goal = q
-        q_start = self.get_joint_state()[1]
+        _, q_start, _, _ = self.last_state_tqva
 
         t_start = self.node.get_clock().now()
         while(rclpy.ok()):

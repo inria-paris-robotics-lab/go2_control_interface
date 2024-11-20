@@ -47,11 +47,12 @@ class WatchDogNode(Node, Go2RobotInterface):
         self.is_stopped = False
         self.is_waiting = False
 
-        self.lowcmd_subscription =  self.create_subscription(LowCmd, "/lowcmd", self.__cmd_cb, 10)
         self.start_subscription =  self.create_subscription(Bool, "/watchdog/arm", self.__arm_disarm_cb, 10)
         self.timer = self.create_timer(1./self.freq, self.timer_callback)
 
         self._is_safe_publisher =  self.create_publisher(Bool, "/watchdog/is_safe", QoSProfile(depth=10, durability=QoSDurabilityPolicy.TRANSIENT_LOCAL))
+
+        self.register_callback(self.__cmd_cb)
 
     def __arm_disarm_cb(self, msg):
         # Acting as an e-stop
@@ -60,12 +61,25 @@ class WatchDogNode(Node, Go2RobotInterface):
         else:
             self._arm_watchdog()
 
-    def __cmd_cb(self, msg):
+    def __cmd_cb(self, t, q, dq, ddq):
         if self.is_waiting:
             self.get_logger().warning("First command received on /lowcmd, watchdog running")
 
         self.is_waiting = False
         self.cnt = 0 # Reset timeout
+
+        # Joint bounds
+        q_max_bound = [q_i > self.q_max[i] for i, q_i in enumerate(q)]
+        q_min_bound = [q_i < self.q_min[i] for i, q_i in enumerate(q)]
+        dq_max_bound = [abs(dq_i) > self.dq_max for dq_i in dq]
+
+        if any(q_max_bound):
+            self._stop_robot(f"Watch-dog detect joint {[i for i, b in enumerate(q_max_bound) if b]} out of bounds. (max q)")
+        if any(q_min_bound):
+            self._stop_robot(f"Watch-dog detect joint {[i for i, b in enumerate(q_min_bound) if b]} out of bounds. (min q)")
+        if any(dq_max_bound):
+            self._stop_robot(f"Watch-dog detect joint {[i for i, b in enumerate(dq_max_bound) if b]} out of bounds. (max dq)")
+        # TODO: Add check on tau (look at cmd ??)
 
     def timer_callback(self):
         # If stopped, spam damping command
@@ -81,22 +95,6 @@ class WatchDogNode(Node, Go2RobotInterface):
         self.cnt += 1
         if self.cnt >= self.n_fail:
             self._stop_robot("Watch-dog timer reached.")
-
-        # Joint bounds
-        tqva = self.get_joint_state()
-        if tqva is not None:
-            _, q, dq, _ = tqva
-            q_max_bound = [q_i > self.q_max[i] for i, q_i in enumerate(q)]
-            q_min_bound = [q_i < self.q_min[i] for i, q_i in enumerate(q)]
-            dq_max_bound = [abs(dq_i) > self.dq_max for dq_i in dq]
-
-            if any(q_max_bound):
-                self._stop_robot(f"Watch-dog detect joint {[i for i, b in enumerate(q_max_bound) if b]} out of bounds. (max q)")
-            if any(q_min_bound):
-                self._stop_robot(f"Watch-dog detect joint {[i for i, b in enumerate(q_min_bound) if b]} out of bounds. (min q)")
-            if any(dq_max_bound):
-                self._stop_robot(f"Watch-dog detect joint {[i for i, b in enumerate(dq_max_bound) if b]} out of bounds. (max dq)")
-            # TODO: Add check on tau (look at cmd ??)
 
 
     def _arm_watchdog(self):
