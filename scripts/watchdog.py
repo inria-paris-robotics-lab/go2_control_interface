@@ -47,12 +47,13 @@ class WatchDogNode(Node, Go2RobotInterface):
         self.is_stopped = False
         self.is_waiting = False
 
+        self.lowcmd_subscription =  self.create_subscription(LowCmd, "/lowcmd", self.__cmd_cb, 10)
         self.start_subscription =  self.create_subscription(Bool, "/watchdog/arm", self.__arm_disarm_cb, 10)
         self.timer = self.create_timer(1./self.freq, self.timer_callback)
+        self.register_callback(self.__state_cb)
 
         self._is_safe_publisher =  self.create_publisher(Bool, "/watchdog/is_safe", QoSProfile(depth=10, durability=QoSDurabilityPolicy.TRANSIENT_LOCAL))
 
-        self.register_callback(self.__cmd_cb)
 
     def __arm_disarm_cb(self, msg):
         # Acting as an e-stop
@@ -61,13 +62,14 @@ class WatchDogNode(Node, Go2RobotInterface):
         else:
             self._arm_watchdog()
 
-    def __cmd_cb(self, t, q, dq, ddq):
+    def __cmd_cb(self, msg):
         if self.is_waiting:
             self.get_logger().warning("First command received on /lowcmd, watchdog running")
 
         self.is_waiting = False
         self.cnt = 0 # Reset timeout
 
+    def __state_cb(self, t, q, dq, ddq):
         # Joint bounds
         q_max_bound = [q_i > self.q_max[i] for i, q_i in enumerate(q)]
         q_min_bound = [q_i < self.q_min[i] for i, q_i in enumerate(q)]
