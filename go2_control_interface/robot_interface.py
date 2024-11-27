@@ -128,7 +128,7 @@ class Go2RobotInterface():
         self._cmd_publisher.publish(msg)
 
     def __state_cb(self, msg: LowState):
-        t = Time.from_msg(self.node.get_clock().now())
+        t = self.node.get_clock().now().nanoseconds / 1.e9
         q_urdf = [msg.motor_state[i].q for i in self.__ros_to_urdf_index]
         v_urdf = [msg.motor_state[i].dq for i in self.__ros_to_urdf_index]
         a_urdf = [msg.motor_state[i].ddq for i in self.__ros_to_urdf_index]
