@@ -2,11 +2,11 @@ import socket
 import fcntl
 import struct
 import os
-from typing import Optional
 
 class Go2NetworkInfo():
-    def __init__(self):
-        super().__init__()
+    ROBOT_SUBNET = "192.168.123"
+    GO2_HOST = ".18"
+    JETSON_HOST = ".161"
 
     def getIPInfo(self, ifname):
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -20,45 +20,20 @@ class Go2NetworkInfo():
         except IOError:
             return None
 
-    def getGo2InterfaceName(self):
+    def getGo2InterfaceNameIp(self):
         # Return a list of network interface information
         nameindex_array = socket.if_nameindex()
 
         for index, ifname in nameindex_array:
             ipaddr = self.getIPInfo(ifname)
             if ipaddr!=None:
-                if (ipaddr.startswith("192.168.123")):
-                    return ifname
-        return None 
-    
-    def getGo2InterfaceIP(self):
-        # Return a list of network interface information
-        nameindex_array = socket.if_nameindex()
-
-        for index, ifname in nameindex_array:
-            ipaddr = self.getIPInfo(ifname)
-            if ipaddr!=None:
-                if (ipaddr.startswith("192.168.123")):
-                    return ipaddr
-        return None 
-    
-
-    def isNettworkUp(self):
-        if self.getGo2InterfaceName() is None:
-            return False
-        
-        return True
+                if (ipaddr.startswith(self.ROBOT_SUBNET)):
+                    return ifname, ipaddr
+        return None, None
 
     # hardcoded IP address
-    def isRobotUp(self):
-        ret = os.system("ping -q -c 2 -W 1 -t 100 192.168.123.18")
-        if ret != 0:
-            # not up
-            return False
-        return True
-
-    def isJetsonUp(self):
-        ret = os.system("ping -q -c 2 -W 1 -t 50 192.168.123.161")
+    def ping(self, host):
+        ret = os.system("ping -q -c 2 -W 1 -t 100 "+self.ROBOT_SUBNET+host)
         if ret != 0:
             # not up
             return False
@@ -67,13 +42,15 @@ class Go2NetworkInfo():
 
 def main(args = None):
     go2_net = Go2NetworkInfo()
-    go2_ifname = go2_net.getGo2InterfaceName()
-    go2_ifip = go2_net.getGo2InterfaceIP()
-    go2_ifnet_up = go2_net.isNettworkUp()
-    go2_robot_up = go2_net.isRobotUp()
-    go2_jetson_up = go2_net.isJetsonUp()
+    ifname, ifip = go2_net.getGo2InterfaceNameIp()
+    print(f'DDS Interface name: {ifname}')
+    print(f'IP address:         {ifip}')
 
-    print(f'DDS Interface name {go2_ifname} IP address {go2_ifip} id up {go2_ifnet_up} with Go2 active {go2_robot_up} and Jetson active {go2_jetson_up}')
+    print('\nPinging devices:')
+    robot_up = go2_net.ping(go2_net.GO2_HOST)
+    jetson_up = go2_net.ping(go2_net.JETSON_HOST)
+    print(f'Robot  is {"  " if robot_up  else "NOT"} reachable ({go2_net.ROBOT_SUBNET+go2_net.GO2_HOST})')
+    print(f'Jetson is {"  " if jetson_up else "NOT"} reachable ({go2_net.ROBOT_SUBNET+go2_net.GO2_HOST})')
 
 if __name__=='__main__':
     main()
