@@ -7,6 +7,8 @@ from unitree_sdk2py.core.channel import ChannelFactoryInitialize
 from unitree_sdk2py.comm.motion_switcher.motion_switcher_client import MotionSwitcherClient
 from unitree_sdk2py.go2.sport.sport_client import SportClient
 
+from go2_utils.autodetect_network_if import Go2NetworkInfo
+
 class Go2Shutdown():
 
     def __init__(self, netwif):
@@ -35,27 +37,20 @@ class Go2Shutdown():
         return 0
 
 
-def main(args = None):
-    print("WARNING: Please ensure there are no obstacles around the robot while running this example.")
-    input("Press Enter to continue...")
-
-    ifname = ""
-
-    if len(sys.argv)==1:
-        print("Script requires the network interface used to connect to the Go2")
-        ifname = "enx00143d1488c7"
-        # sys.exit(-1)
-    else:
-        ifname = sys.argv[1]
+def main():
+    ifname, ifip = Go2NetworkInfo().getGo2InterfaceNameIp()
 
     client = Go2Shutdown (ifname)
+    print(f"Connected to robot on if {ifname}")
+
+    print("Switch off sportsmode...")
     client.SwitchOff()
 
     while True:
         if client.completed == 1.0:
            time.sleep(1)
            print("Done!")
-           sys.exit(-1)
+           sys.exit(0)
         time.sleep(1)
 
 if __name__=='__main__':
