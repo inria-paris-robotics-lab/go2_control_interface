@@ -1,6 +1,7 @@
 import rclpy
 from rclpy.node import Node
 from rclpy.duration import Duration
+from rclpy.time import Time
 
 from typing import List, Callable
 from unitree_go.msg import LowCmd, LowState
@@ -127,7 +128,7 @@ class Go2RobotInterface():
         self._cmd_publisher.publish(msg)
 
     def __state_cb(self, msg: LowState):
-        t = self.node.get_clock().now().nanoseconds / 1.e9
+        t = Time.from_msg(self.node.get_clock().now())
         q_urdf = [msg.motor_state[i].q for i in self.__ros_to_urdf_index]
         v_urdf = [msg.motor_state[i].dq for i in self.__ros_to_urdf_index]
         a_urdf = [msg.motor_state[i].ddq for i in self.__ros_to_urdf_index]
