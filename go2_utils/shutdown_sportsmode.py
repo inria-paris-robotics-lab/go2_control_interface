@@ -15,7 +15,7 @@ class Go2Shutdown():
 
     # Public methods
     def SwitchOff(self):
-        self.sc = SportClient()  
+        self.sc = SportClient()
         self.sc.SetTimeout(5.0)
         self.sc.Init()
 
@@ -51,12 +51,12 @@ def main(args = None):
     client = Go2Shutdown (ifname)
     client.SwitchOff()
 
-    while True:        
-        if client.completed == 1.0: 
+    while True:
+        if client.completed == 1.0:
            time.sleep(1)
            print("Done!")
-           sys.exit(-1)     
+           sys.exit(-1)
         time.sleep(1)
-        
+
 if __name__=='__main__':
     main()
