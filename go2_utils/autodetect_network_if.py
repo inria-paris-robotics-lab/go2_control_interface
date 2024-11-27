@@ -1,7 +1,7 @@
 import socket
 import fcntl
 import struct
-import os
+import subprocess
 
 class Go2NetworkInfo():
     ROBOT_SUBNET = "192.168.123"
@@ -33,8 +33,8 @@ class Go2NetworkInfo():
 
     # hardcoded IP address
     def ping(self, host):
-        ret = os.system("ping -q -c 2 -W 1 -t 100 "+self.ROBOT_SUBNET+host)
-        if ret != 0:
+        res = subprocess.run(["ping", "-q", "-c", "2", "-W", "1", "-t", "100", self.ROBOT_SUBNET+host], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if res.returncode != 0:
             # not up
             return False
         return True
