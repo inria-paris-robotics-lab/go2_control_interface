@@ -8,7 +8,7 @@ import rospkg
 class Go2EnvSetup():
     def generateEnv(self):
         go2_net_info = Go2NetworkInfo()
-        ifname = go2_net_info.getGo2InterfaceName()
+        ifname, ifip = go2_net_info.getGo2InterfaceNameIp()
 
         print (f'\nSetup commands\n', file=sys.stderr)
         print (f'export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp')
