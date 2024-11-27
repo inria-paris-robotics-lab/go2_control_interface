@@ -4,7 +4,7 @@ import struct
 import os, sys
 from typing import Optional
 
-from go2_netwif import Go2NetworkInfo
+from go2_utils.autodetect_network_if import Go2NetworkInfo
 
 import importlib, pathlib
 import importlib.util
