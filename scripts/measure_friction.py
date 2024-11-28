@@ -17,9 +17,14 @@ class JointFrictionEstimatorNode(Node, ):
 
         # Procedure parameters
         self.joint_i = self.declare_parameter("joint").value
-        self.v_thresh = self.declare_parameter("v_thresh", 0.1).value
         self.torque_rate = self.declare_parameter("torque_rate", 0.5).value # N/s
-        self.start_measure = False
+
+        self.measure_sign = 1 if self.torque_rate > 0 else -1
+
+        # Node state
+        self.measure_friction = False
+        self.measure_noise = False
+
         # Joint states
         self.tqva_i = None
 
@@ -39,14 +44,20 @@ class JointFrictionEstimatorNode(Node, ):
         if(not self.robot_if.is_ready):
             return
 
-        if(not self.start_measure):
+        # To measure in the same direction as the torque is applied
+        v_i_signed = self.measure_sign * v_i
+
+        if(self.measure_noise):
+            self.max_noise = max(self.max_noise, v_i_signed)
+
+        if(not self.measure_friction):
             self.robot_if.send_command(zeros, zeros, zeros, zeros, zeros)
             self.t_start = t
             return
 
-        if(abs(v_i) > self.v_thresh):
-            self.start_measure = False
-            print(f"Static friction on joint {self.joint_i} estiamted at {self.tau_i} N")
+        if(v_i_signed > self.max_noise * 1.2):
+            self.measure_friction = False
+            print(f"Static friction on joint {self.joint_i} estiamted at {self.tau_i} N.")
 
         tau = [0.] * 12
         self.tau_i = (t - self.t_start) * self.torque_rate
@@ -65,12 +76,21 @@ class JointFrictionEstimatorNode(Node, ):
               """)
         input("Press enter to start procedure...")
 
+        # Measure noise level on joint only the first time
+        print(f"Measuring noise level on joint {self.joint_i}...")
+        self.max_noise = 0.0
+        self.measure_noise = True
+        self.get_clock().sleep_for(Duration(seconds=3.))
+        self.measure_noise = False
+        print(f"Max noise of {self.max_noise} rad/s on joint {self.joint_i}.")
+
         while(rclpy.ok()):
             print(f"Gradually increasing torque on joint {self.joint_i} with a rate of {self.torque_rate} N/s...")
-            self.start_measure = True
-            while(self.start_measure):
+            self.measure_friction = True
+
+            # wait for measure to be finished
+            while(self.measure_friction):
                 self.get_clock().sleep_for(Duration(seconds=.1))
-                # wait for measure to be finished
             input("Press enter to retry...")
 
 def main(args=None):
