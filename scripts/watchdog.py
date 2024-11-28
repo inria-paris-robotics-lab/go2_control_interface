@@ -50,7 +50,9 @@ class WatchDogNode(Node, Go2RobotInterface):
         self.lowcmd_subscription =  self.create_subscription(LowCmd, "/lowcmd", self.__cmd_cb, 10)
         self.start_subscription =  self.create_subscription(Bool, "/watchdog/arm", self.__arm_disarm_cb, 10)
         self.timer = self.create_timer(1./self.freq, self.timer_callback)
-        self.register_callback(self.__state_cb)
+
+        if(not self.ignore_joint_limits):
+            self.register_callback(self.__state_cb)
 
         self._is_safe_publisher =  self.create_publisher(Bool, "/watchdog/is_safe", QoSProfile(depth=10, durability=QoSDurabilityPolicy.TRANSIENT_LOCAL))
 

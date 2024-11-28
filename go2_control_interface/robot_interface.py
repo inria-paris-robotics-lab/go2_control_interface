@@ -44,11 +44,11 @@ class Go2RobotInterface():
     def register_callback(self, callback: Callable[[float, List[float], List[float], List[float]], None]):
         self.user_cb = callback
 
-    def start_async(self, q_start: List[float]):
-        thread = threading.Thread(target=self.start_routine, args=(q_start, ), daemon=True)
+    def start_async(self, q_start: List[float], *, goto_config: Bool = True):
+        thread = threading.Thread(target=self.start_routine, args=(q_start, goto_config), daemon=True)
         thread.start()
 
-    def start_routine(self, q_start: List[float]):
+    def start_routine(self, q_start: List[float], goto_config=True):
         # TODO: Disable sportsmode controller
          # Arm watchdog
         arm_watchdog_msg = Bool()
@@ -59,9 +59,14 @@ class Go2RobotInterface():
         while(not self.is_safe and rclpy.ok()):
             self.node.get_clock().sleep_for(Duration(seconds=.1))
 
-        self.node.get_logger().info("Going to start configuration...")
-        self._go_to_configuration__(q_start, 5.0)
-        self.node.get_logger().info("Start configuration reached.")
+        if(goto_config):
+            self.node.get_logger().info("Going to start configuration...")
+            self._go_to_configuration__(q_start, 5.0)
+            self.node.get_logger().info("Start configuration reached.")
+        else:
+            self.node.get_logger().info("Skipping start configuration, set command to zero")
+            zeros = [0.] * 12
+            self._send_command(zeros, zeros, zeros, zeros, zeros, 0.0)
         self.is_ready = True
 
     def send_command(self, q: List[float], v: List[float], tau: List[float], kp: List[float], kd: List[float]):
