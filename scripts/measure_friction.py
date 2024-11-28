@@ -55,7 +55,7 @@ class JointFrictionEstimatorNode(Node, ):
             self.t_start = t
             return
 
-        if(v_i_signed > self.max_noise * 1.2):
+        if(v_i_signed > self.max_noise * 3.):
             self.measure_friction = False
             print(f"Static friction on joint {self.joint_i} estiamted at {self.tau_i} N.")
 
