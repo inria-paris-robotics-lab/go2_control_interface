@@ -17,7 +17,7 @@ class JointFrictionEstimatorNode(Node, ):
 
         # Procedure parameters
         self.joint_i = self.declare_parameter("joint").value
-        self.torque_rate = self.declare_parameter("torque_rate", 0.5).value # N/s
+        self.torque_rate = self.declare_parameter("torque_rate", 0.5).value # Nm/s
 
         self.measure_sign = 1 if self.torque_rate > 0 else -1
 
@@ -57,7 +57,7 @@ class JointFrictionEstimatorNode(Node, ):
 
         if(v_i_signed > self.max_noise * 3.):
             self.measure_friction = False
-            print(f"Static friction on joint {self.joint_i} estiamted at {self.tau_i} N.")
+            print(f"Static friction on joint {self.joint_i} estimated at {self.tau_i} Nm.")
 
         tau = [0.] * 12
         self.tau_i = (t - self.t_start) * self.torque_rate
@@ -85,7 +85,7 @@ class JointFrictionEstimatorNode(Node, ):
         print(f"Max noise of {self.max_noise} rad/s on joint {self.joint_i}.")
 
         while(rclpy.ok()):
-            print(f"Gradually increasing torque on joint {self.joint_i} with a rate of {self.torque_rate} N/s...")
+            print(f"Gradually increasing torque on joint {self.joint_i} with a rate of {self.torque_rate} Nm/s...")
             self.measure_friction = True
 
             # wait for measure to be finished
