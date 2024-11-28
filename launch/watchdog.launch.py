@@ -1,10 +1,17 @@
 from launch import LaunchDescription
-from launch.substitutions import PathJoinSubstitution
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import PathJoinSubstitution, LaunchConfiguration
 from launch_ros.substitutions import FindPackageShare
 from launch_ros.actions import Node
 
 
 def generate_launch_description():
+    ignore_joint_limits_arg = DeclareLaunchArgument(
+        'ignore_joint_limits',
+        default_value='False',
+        description="If set to true, watchdog won't enforce joint position limits"
+    )
+
     watchdog_config_filepath = PathJoinSubstitution([
                                     FindPackageShare('go2_control_interface'),
                                     'config',
@@ -12,11 +19,12 @@ def generate_launch_description():
                                 ])
 
     return LaunchDescription([
+        ignore_joint_limits_arg,
         Node(
             package='go2_control_interface',
             executable='watchdog.py',
             name='watchdog',
             output='screen',
-            parameters=[watchdog_config_filepath],
+            parameters=[watchdog_config_filepath, {"ignore_joint_limits": LaunchConfiguration("ignore_joint_limits")}],
            ),
 ])
