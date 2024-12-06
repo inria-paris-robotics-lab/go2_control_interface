@@ -45,12 +45,11 @@ class Go2RobotInterface():
         self.user_cb = callback
 
     def start_async(self, q_start: List[float], *, goto_config: Bool = True):
-        thread = threading.Thread(target=self.start_routine, args=(q_start, goto_config), daemon=True)
+        thread = threading.Thread(target=self._start_routine, args=(q_start, goto_config), daemon=True)
         thread.start()
 
-    def start_routine(self, q_start: List[float], goto_config=True):
-        # TODO: Disable sportsmode controller
-         # Arm watchdog
+    def _start_routine(self, q_start: List[float], goto_config=True):
+        # Arm watchdog
         arm_watchdog_msg = Bool()
         arm_watchdog_msg.data = True
         self._watchdog_publisher.publish(arm_watchdog_msg)

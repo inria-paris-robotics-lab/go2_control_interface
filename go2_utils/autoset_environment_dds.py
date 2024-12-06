@@ -2,8 +2,6 @@ import sys
 
 from go2_utils.autodetect_network_if import Go2NetworkInfo
 
-import rospkg
-
 
 class Go2EnvSetup():
     def generateEnv(self):
