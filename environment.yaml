@@ -1,0 +1,20 @@
+name: go2_control_interface
+channels:
+- conda-forge
+- robostack-staging
+dependencies:
+- boost[version='>=1.82']
+- bullet
+- ccache
+- cmake
+- colcon-common-extensions
+- compilers
+- cxx-compiler
+- ipython
+- pyqtgraph
+- ros-humble-desktop-full
+- ros-humble-diagnostic-updater
+- ros-humble-geographic-msgs
+- ros-humble-rosidl-generator-dds-idl
+- ros-humble-rqt-common-plugins
+- vcstools
