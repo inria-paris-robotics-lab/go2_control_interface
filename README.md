@@ -102,21 +102,23 @@ class MyApp(Node, ):
         Node.__init__(self, "my_app")
         self.robot_if = Go2RobotInterface(self)
         self.robot_if.register_callback(self._sensor_reading_callback)
-        self.robot_if.start_async([], goto_config=False)
 
-        self.timer = self.create_timer(0.002, self._timer_callback) # 500 Hz
+        # The robot will move by itself to the q_start configuration and wait for you first command
+        start_q = [0.] *12
+        self.robot_if.start_async(start_q)
 
     def _sensor_reading_callback(self, t, q, dq, ddq):
         # Reading timestamp, positions, velocities, accelerations
-        pass
+        # (Should be received at 500Hz approx.)
 
-    def _timer_callback(self):
-        q   = [0.] * 12
-        v   = [0.] * 12
-        tau = [0.] * 12
-        kp  = [0.] * 12
-        kd  = [0.] * 12
-        self.robot_if.send_command(q, v, tau, kp, kd)
+        # Sending commands
+        q_des   = [0.] * 12
+        v_des   = [0.] * 12
+        tau_des = [0.] * 12
+        kp      = [0.] * 12
+        kd      = [0.] * 12
+        self.robot_if.send_command(q_des, v_des, tau_des, kp, kd)
+        pass
 
 def main(args=None):
     rclpy.init(args=args)
