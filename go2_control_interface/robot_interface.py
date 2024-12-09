@@ -69,7 +69,7 @@ class Go2RobotInterface():
         self.is_ready = True
 
     def send_command(self, q: List[float], v: List[float], tau: List[float], kp: List[float], kd: List[float]):
-        assert self.is_ready, "Go2RobotInterface not start-ed, call start(q_start) first"
+        assert self.is_ready, "Go2RobotInterface not start-ed, call start_async(q_start) first and wait for Go2RobotInterface.is_ready flag to be True"
         assert self.is_safe, "Soft e-stop sent by watchdog, ignoring command"
         self._send_command(q,v,tau,kp,kd)
 

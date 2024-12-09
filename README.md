@@ -117,7 +117,8 @@ class MyApp(Node, ):
         tau_des = [0.] * 12
         kp      = [0.] * 12
         kd      = [0.] * 12
-        self.robot_if.send_command(q_des, v_des, tau_des, kp, kd)
+        if self.robot_if.is_ready:
+            self.robot_if.send_command(q_des, v_des, tau_des, kp, kd)
         pass
 
 def main(args=None):
