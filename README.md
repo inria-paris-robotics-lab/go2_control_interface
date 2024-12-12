@@ -59,7 +59,7 @@ source install/setup.bash
 
 7. Build unitree_sdk
 ```bash
-export CYCLONEDDS_HOME="../../install/cyclonedds"
+export CYCLONEDDS_HOME="$(pwd)/install/cyclonedds"
 cd src/unitree_sdk2_python
 pip install -e .
 ```
@@ -67,12 +67,33 @@ pip install -e .
 ## How to control the robot
 
 #### 0. Setup your env
+##### On the real robot
 Your network interface where the robot is plugged need to be set in "manual IPV4" (e.g. hve a static ip address) with `192.168.123.222` / `255.255.255.0` address/netmask
 ```bash
 mamba activate go2_control_interface
 source install/setup.bash
 source <(ros2 run go2_control_interface autoset_environment_dds)
 ```
+
+##### In simulation (using go2_simulation)
+```bash
+mamba activate go2_control_interface
+source install/setup.bash
+export CYCLONEDDS_HOME="---absolute path to cyclonedds workspace---/install/cyclonedds"
+export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+export CYCLONEDDS_URI='<CycloneDDS>
+                            <Domain>
+                                <General>
+                                    <Interfaces>
+                                        <NetworkInterface name="---Network interface---" priority="default" multicast="default" />
+                                    </Interfaces>
+                                </General>
+                            </Domain>
+                       </CycloneDDS>'
+```
+* Replace `---absolute path to cyclonedds workspace---`
+* Replace `---Network interface---`
+    * NB: because of cyclone dds, your interface must actually be plugged to a network with an IP address and must be **LOOPBACK** capable (ideally **MULTICAST** too). This can be checked using `ifconfig` and usually **lo** works for ubuntu machines.
 
 #### 1. Shutdown unitree default control
 When powered on, the go2 have some default unitree controllers running, to make it stand up and walk. It needs to but shutdown as it is constantly spamming the motor with its commands.
