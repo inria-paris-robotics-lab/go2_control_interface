@@ -81,19 +81,9 @@ mamba activate go2_control_interface
 source install/setup.bash
 export CYCLONEDDS_HOME="---absolute path to cyclonedds workspace---/install/cyclonedds"
 export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
-export CYCLONEDDS_URI='<CycloneDDS>
-                            <Domain>
-                                <General>
-                                    <Interfaces>
-                                        <NetworkInterface name="---Network interface---" priority="default" multicast="default" />
-                                    </Interfaces>
-                                </General>
-                            </Domain>
-                       </CycloneDDS>'
+export ROS_LOCALHOST_ONLY=1
 ```
 * Replace `---absolute path to cyclonedds workspace---`
-* Replace `---Network interface---`
-    * NB: because of cyclone dds, your interface must actually be plugged to a network with an IP address and must be **LOOPBACK** capable (ideally **MULTICAST** too). This can be checked using `ifconfig` and usually **lo** works for ubuntu machines.
 
 #### 1. Shutdown unitree default control
 When powered on, the go2 have some default unitree controllers running, to make it stand up and walk. It needs to but shutdown as it is constantly spamming the motor with its commands.
