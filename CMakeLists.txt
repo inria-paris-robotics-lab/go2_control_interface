@@ -6,19 +6,13 @@ find_package(ament_cmake REQUIRED)
 find_package(rclpy REQUIRED)
 
 # Install Python modules
-ament_python_install_package(${PROJECT_NAME})
-ament_python_install_package(go2_utils)
+ament_python_install_package(${PROJECT_NAME}_py)
+ament_python_install_package(${PROJECT_NAME}_common)
 
 # Install package.xml
 install(FILES
   package.xml
   DESTINATION share/${PROJECT_NAME}/
-)
-
-# Install Python scripts
-file(GLOB SCRIPTS scripts/*.py)
-install(PROGRAMS ${SCRIPTS}
-  DESTINATION lib/${PROJECT_NAME}/
 )
 
 # Install configuration files
@@ -32,10 +26,9 @@ install(DIRECTORY launch
 )
 
 # Declare executables for the Python console scripts
+file(GLOB COMMON_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/go2_control_interface_common/*.py)
 install(PROGRAMS
-  ${CMAKE_CURRENT_SOURCE_DIR}/go2_utils/autodetect_network_if.py
-  ${CMAKE_CURRENT_SOURCE_DIR}/go2_utils/autoset_environment_dds.py
-  ${CMAKE_CURRENT_SOURCE_DIR}/go2_utils/shutdown_sportsmode.py
+  ${COMMON_SCRIPTS}
   DESTINATION lib/${PROJECT_NAME}
 )
 

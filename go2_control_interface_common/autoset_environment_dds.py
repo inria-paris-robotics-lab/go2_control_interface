@@ -2,7 +2,7 @@
 
 import sys
 
-from go2_utils.autodetect_network_if import Go2NetworkInfo
+from go2_control_interface_common.autodetect_network_if import Go2NetworkInfo
 
 
 class Go2EnvSetup():

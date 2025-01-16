@@ -2,7 +2,7 @@
 
 import rclpy
 from rclpy.node import Node
-from go2_control_interface.robot_interface import Go2RobotInterface
+from go2_control_interface_py.robot_interface import Go2RobotInterface
 from unitree_go.msg import LowCmd
 from std_msgs.msg import Bool
 from rclpy.qos import QoSProfile, QoSDurabilityPolicy
