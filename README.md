@@ -72,7 +72,7 @@ Your network interface where the robot is plugged need to be set in "manual IPV4
 ```bash
 mamba activate go2_control_interface
 source install/setup.bash
-source <(ros2 run go2_control_interface autoset_environment_dds)
+source <(ros2 run go2_control_interface autoset_environment_dds.py)
 ```
 ##### In simulation (using go2_simulation)
 ```bash
@@ -106,7 +106,7 @@ Anywhere                   ALLOW IN    192.168.123.222/udp
 #### 1. Shutdown unitree default control
 When powered on, the go2 have some default unitree controllers running, to make it stand up and walk. It needs to but shutdown as it is constantly spamming the motor with its commands.
 ```bash
-ros2 run go2_control_interface shutdown_sportsmode
+ros2 run go2_control_interface shutdown_sportsmode.py
 ```
 
 #### 2. Launch watchdog
