@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import sys
 
 from go2_utils.autodetect_network_if import Go2NetworkInfo
