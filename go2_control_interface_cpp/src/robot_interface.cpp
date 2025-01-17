@@ -1,9 +1,5 @@
 #include "robot_interface.hpp"
 
-#include <array>
-#include <string>
-#include <vector>
-
 #include "motor_crc.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/bool.hpp"
@@ -54,11 +50,6 @@ void Go2RobotInterface::initialize_command() {
   cmd_->reserve = 0;
   cmd_->led = std::array<uint8_t, 12>{};
 
-  /* Initialize the motor commands,
-   * refer to
-   * https://github.com/isaac-sim/IsaacLab/blob/874b7b628d501640399a241854c83262c5794a4b/source/extensions/omni.isaac.lab_assets/omni/isaac/lab_assets/unitree.py#L167
-   * for the default values of kp and kd.
-   */
   for (auto &m_cmd_ : cmd_->motor_cmd) {
     m_cmd_.mode = 1;
     m_cmd_.q = 0;

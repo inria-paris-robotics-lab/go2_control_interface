@@ -1,14 +1,9 @@
 #pragma once
 
 #include <array>
-#include <chrono>
 #include <cmath>
-#include <fstream>
-#include <memory>
-#include <string>
 
 #include "rclcpp/rclcpp.hpp"
-#include "sensor_msgs/msg/joy.hpp"
 #include "std_msgs/msg/bool.hpp"
 #include "unitree_go/msg/low_cmd.hpp"
 #include "unitree_go/msg/low_state.hpp"
@@ -179,8 +174,7 @@ class Go2RobotInterface {
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr
       watchdog_subscription_;  ///< Subscription to the "/watchdog/is_safe"
                                ///< topic
-  rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr
-      joy_subscription_;  ///< Subscription to the Joy topic
+
   rclcpp::Subscription<unitree_go::msg::LowState>::SharedPtr
       state_subscription_;  ///< Subscription to the state topic
 
