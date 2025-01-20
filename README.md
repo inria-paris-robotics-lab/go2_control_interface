@@ -59,7 +59,7 @@ source install/setup.bash
 
 7. Build unitree_sdk
 ```bash
-export CYCLONEDDS_HOME="../../install/cyclonedds"
+export CYCLONEDDS_HOME="$(pwd)/install/cyclonedds"
 cd src/unitree_sdk2_python
 pip install -e .
 ```
@@ -67,12 +67,22 @@ pip install -e .
 ## How to control the robot
 
 #### 0. Setup your env
+##### On the real robot
 Your network interface where the robot is plugged need to be set in "manual IPV4" (e.g. hve a static ip address) with `192.168.123.222` / `255.255.255.0` address/netmask
 ```bash
 mamba activate go2_control_interface
 source install/setup.bash
 source <(ros2 run go2_control_interface autoset_environment_dds)
 ```
+##### In simulation (using go2_simulation)
+```bash
+mamba activate go2_control_interface
+source install/setup.bash
+export CYCLONEDDS_HOME="---absolute path to cyclonedds workspace---/install/cyclonedds"
+export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+export ROS_LOCALHOST_ONLY=1
+```
+* Replace `---absolute path to cyclonedds workspace---`
 
 ##### GO2 topics not appearing on local machine:
 Your firewall might block communication between your machine and the go2 (topics such as `/lowstate`,`/api/...` will not appear), in that case deactivate your firewall with :
@@ -92,6 +102,7 @@ Vers                       Action      De
 Anywhere                   ALLOW IN    192.168.123.222/udp       
 192.168.123.222/udp        ALLOW IN    Anywhere                  
 ```
+
 #### 1. Shutdown unitree default control
 When powered on, the go2 have some default unitree controllers running, to make it stand up and walk. It needs to but shutdown as it is constantly spamming the motor with its commands.
 ```bash
@@ -135,7 +146,8 @@ class MyApp(Node, ):
         tau_des = [0.] * 12
         kp      = [0.] * 12
         kd      = [0.] * 12
-        self.robot_if.send_command(q_des, v_des, tau_des, kp, kd)
+        if self.robot_if.is_ready:
+            self.robot_if.send_command(q_des, v_des, tau_des, kp, kd)
         pass
 
 def main(args=None):

@@ -17,4 +17,4 @@ dependencies:
 - ros-humble-geographic-msgs
 - ros-humble-rosidl-generator-dds-idl
 - ros-humble-rqt-common-plugins
-- vcstools
+- vcstool

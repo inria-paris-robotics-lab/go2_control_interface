@@ -11,7 +11,7 @@ import threading
 
 class Go2RobotInterface():
     # TODO: Populate this array programmatically
-    __ros_to_urdf_index = [
+    __unitree_to_urdf_index = [
             3,  4,  5,
             0,  1,  2,
             9, 10, 11,
@@ -69,7 +69,7 @@ class Go2RobotInterface():
         self.is_ready = True
 
     def send_command(self, q: List[float], v: List[float], tau: List[float], kp: List[float], kd: List[float]):
-        assert self.is_ready, "Go2RobotInterface not start-ed, call start(q_start) first"
+        assert self.is_ready, "Go2RobotInterface not start-ed, call start_async(q_start) first and wait for Go2RobotInterface.is_ready flag to be True"
         assert self.is_safe, "Soft e-stop sent by watchdog, ignoring command"
         self._send_command(q,v,tau,kp,kd)
 
@@ -109,7 +109,7 @@ class Go2RobotInterface():
         k_ratio  = self.scaling_gain * self.scaling_glob if scaling else 1.0
         ff_ratio = self.scaling_ff   * self.scaling_glob if scaling else 1.0
         for i in range(12):
-            i_urdf = self.__ros_to_urdf_index[i] # Re-order joints
+            i_urdf = self.__unitree_to_urdf_index[i] # Re-order joints
 
             msg.motor_cmd[i].mode = 0x01 #Set toque mode
             msg.motor_cmd[i].q = q[i_urdf]
@@ -133,9 +133,9 @@ class Go2RobotInterface():
 
     def __state_cb(self, msg: LowState):
         t = self.node.get_clock().now().nanoseconds / 1.e9
-        q_urdf = [msg.motor_state[i].q for i in self.__ros_to_urdf_index]
-        v_urdf = [msg.motor_state[i].dq for i in self.__ros_to_urdf_index]
-        a_urdf = [msg.motor_state[i].ddq for i in self.__ros_to_urdf_index]
+        q_urdf = [msg.motor_state[i].q for i in self.__unitree_to_urdf_index]
+        v_urdf = [msg.motor_state[i].dq for i in self.__unitree_to_urdf_index]
+        a_urdf = [msg.motor_state[i].ddq for i in self.__unitree_to_urdf_index]
 
         last_tqva = self.last_state_tqva
         if last_tqva is None or self.filter_fq <= 0.:
@@ -177,6 +177,12 @@ class Go2RobotInterface():
 
             if(ratio == 1):
                 break
+
+    def _unitree_to_urdf_index(self, i):
+        return self.__unitree_to_urdf_index[i]
+
+    def _urdf_to_unitree_index(self, i):
+        return self.__unitree_to_urdf_index.index(i)
 
     def __safety_cb(self, msg):
         self.is_safe = msg.data
