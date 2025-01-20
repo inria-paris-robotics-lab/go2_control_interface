@@ -75,7 +75,7 @@ source <(ros2 run go2_control_interface autoset_environment_dds)
 ```
 
 ##### GO2 topics not appearing on local machine:
-Your firewall might block communication between your machine and the go2 (topics such as `/lowstate`,`/api/...` might not appear), in that case deactivate your firewall with :
+Your firewall might block communication between your machine and the go2 (topics such as `/lowstate`,`/api/...` will not appear), in that case deactivate your firewall with :
 ```bash
 sudo ufx deactivate
 ``` 
