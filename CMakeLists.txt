@@ -1,10 +1,9 @@
 cmake_minimum_required(VERSION 3.8)
 project(go2_control_interface)
 
-
-###################
-# Python Packages #
-###################
+# ###################
+# # Python Packages #
+# ###################
 set(PY_PROJECT_NAME ${PROJECT_NAME}_py)
 set(COMMON_PROJECT_NAME ${PROJECT_NAME}_common)
 
@@ -19,31 +18,40 @@ ament_python_install_package(${COMMON_PROJECT_NAME})
 ###############
 # Cpp Package #
 ###############
-set(CPP_PROJECT_NAME ${PROJECT_NAME}_cpp)
+set(CPP_LIB_NAME ${PROJECT_NAME}_cpp)
 
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(unitree_go REQUIRED)
 find_package(std_msgs REQUIRED)
 
-file(GLOB CPP_SRC ${CMAKE_CURRENT_SOURCE_DIR}/${CPP_PROJECT_NAME}/src/*)
-add_library(${CPP_PROJECT_NAME} STATIC ${CPP_SRC})
-ament_target_dependencies(${CPP_PROJECT_NAME} rclcpp unitree_go std_msgs)
+file(GLOB CPP_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*)
 
-target_include_directories(${CPP_PROJECT_NAME} PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/${CPP_PROJECT_NAME}/include>
-  $<INSTALL_INTERFACE:include>
+add_library(${CPP_LIB_NAME} STATIC ${CPP_SRC})
+
+target_include_directories(${CPP_LIB_NAME}
+  PUBLIC
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+    "$<INSTALL_INTERFACE:include/>"
 )
 
-install(TARGETS
-  ${CPP_PROJECT_NAME}
-  DESTINATION lib/${CPP_PROJECT_NAME}
+ament_target_dependencies(${CPP_LIB_NAME} rclcpp unitree_go std_msgs)
+
+install(
+  DIRECTORY include/
+  DESTINATION include/
 )
 
 install(
-  DIRECTORY ${CPP_PROJECT_NAME}/include/
-  DESTINATION include/${CPP_PROJECT_NAME}
+  TARGETS ${CPP_LIB_NAME}
+  EXPORT export_${PROJECT_NAME}
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib
+  RUNTIME DESTINATION bin
 )
+
+ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
+ament_export_dependencies(rclcpp unitree_go std_msgs)
 
 ########################
 # Global package files #

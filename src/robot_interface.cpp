@@ -1,6 +1,6 @@
-#include "robot_interface.hpp"
+#include "go2_control_interface_cpp/robot_interface.hpp"
+#include "go2_control_interface_cpp/motor_crc.hpp"
 
-#include "motor_crc.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/bool.hpp"
 #include "unitree_go/msg/low_cmd.hpp"

@@ -1,5 +1,5 @@
 // Copied from https://github.com/unitreerobotics/unitree_ros2/blob/master/example/src/src/common/motor_crc.cpp
-#include "motor_crc.hpp"
+#include "go2_control_interface_cpp/motor_crc.hpp"
 
 
 void get_crc(unitree_go::msg::LowCmd& msg)
