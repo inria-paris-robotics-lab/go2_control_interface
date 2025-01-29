@@ -51,11 +51,7 @@ void Go2RobotInterface::initialize_command()
 };
 
 void Go2RobotInterface::send_command(
-  const std::array<float, 12> & q,
-  const std::array<float, 12> & v,
-  const std::array<float, 12> & tau,
-  const std::array<float, 12> & kp,
-  const std::array<float, 12> & kd)
+  const Vector12d & q, const Vector12d & v, const Vector12d & tau, const Vector12d & kp, const Vector12d & kd)
 {
   // Check if the robot is ready
   if (!is_ready_)
@@ -69,11 +65,7 @@ void Go2RobotInterface::send_command(
 };
 
 void Go2RobotInterface::send_command_aux(
-  const std::array<float, 12> & q,
-  const std::array<float, 12> & v,
-  const std::array<float, 12> & tau,
-  const std::array<float, 12> & kp,
-  const std::array<float, 12> & kd)
+  const Vector12d & q, const Vector12d & v, const Vector12d & tau, const Vector12d & kp, const Vector12d & kd)
 {
   if (!is_safe_)
   {
@@ -102,7 +94,7 @@ void Go2RobotInterface::send_command_aux(
   }
 };
 
-void Go2RobotInterface::go_to_configuration_aux(const std::array<float, 12> & q_des, float duration_s)
+void Go2RobotInterface::go_to_configuration_aux(const Vector12d & q_des, double duration_s)
 {
   // Check that duration is positive
   if (duration_s <= 0)
@@ -110,14 +102,14 @@ void Go2RobotInterface::go_to_configuration_aux(const std::array<float, 12> & q_
     throw std::runtime_error("Duration must be strictly positive!");
   }
   // Zero-array for velocities and torques
-  std::array<float, 12> zeroes{};
+  Vector12d zeroes{};
   std::fill(zeroes.begin(), zeroes.end(), 0.0);
 
   // Kp and Kd arrays
-  std::array<float, 12> kp_array{};
+  Vector12d kp_array{};
   std::fill(kp_array.begin(), kp_array.end(), 150.0);
 
-  std::array<float, 12> kd_array{};
+  Vector12d kd_array{};
   std::fill(kd_array.begin(), kd_array.end(), 1.0);
 
   // Get the current time
@@ -138,7 +130,7 @@ void Go2RobotInterface::go_to_configuration_aux(const std::array<float, 12> & q_
     auto current_time = node_.now() - start_time;
 
     // Calculate the interpolation factor
-    float alpha = current_time.seconds() / duration_s;
+    double alpha = current_time.seconds() / duration_s;
 
     // Check if the interpolation is complete
     if (alpha >= 1.5)
@@ -150,7 +142,7 @@ void Go2RobotInterface::go_to_configuration_aux(const std::array<float, 12> & q_
     alpha = alpha > 1.0 ? 1.0 : alpha;
 
     // Interpolate the joint positions
-    std::array<float, 12> q_step{};
+    Vector12d q_step{};
     for (size_t source_idx = 0; source_idx < 12; source_idx++)
     {
       q_step[source_idx] = start_q[source_idx] + alpha * (q_des[source_idx] - start_q[source_idx]);
@@ -174,7 +166,7 @@ void Go2RobotInterface::go_to_configuration_aux(const std::array<float, 12> & q_
   // between the current and desired joint positions
   for (size_t source_idx = 0; source_idx < 12; source_idx++)
   {
-    float error = std::abs(q_des[source_idx] - state_q_[source_idx]);
+    double error = std::abs(q_des[source_idx] - state_q_[source_idx]);
     if (error > 0.1)
     {
       throw std::runtime_error("Interpolation failed, error is: " + std::to_string(error));
@@ -185,7 +177,7 @@ void Go2RobotInterface::go_to_configuration_aux(const std::array<float, 12> & q_
   is_ready_ = true;
 };
 
-void Go2RobotInterface::go_to_configuration(const std::array<float, 12> & q_des, float duration_s)
+void Go2RobotInterface::go_to_configuration(const Vector12d & q_des, double duration_s)
 {
   auto msg = std_msgs::msg::Bool();
   msg.data = true;

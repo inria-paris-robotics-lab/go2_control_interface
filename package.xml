@@ -12,6 +12,7 @@
   <depend>rclpy</depend>
   <depend>std_msgs</depend>
   <depend>unitree_go</depend>
+  <depend>eigen</depend>
 
  <test_depend>ament_copyright</test_depend>
  <test_depend>ament_flake8</test_depend>

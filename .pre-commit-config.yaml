@@ -26,7 +26,3 @@ repos:
             (?x)^(
                 doc/doxygen-awesome.*
             )$
-  - repo: https://github.com/BlankSpruce/gersemi
-    rev: 0.18.2
-    hooks:
-      - id: gersemi

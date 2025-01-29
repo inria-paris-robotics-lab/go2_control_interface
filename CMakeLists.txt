@@ -24,6 +24,7 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(unitree_go REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(Eigen3 REQUIRED)
 
 file(GLOB CPP_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/${CPP_LIB_NAME})
 file(GLOB CPP_SOURCE_FILES ${CPP_SOURCE_DIR}/src/*)
@@ -36,6 +37,7 @@ target_include_directories(${CPP_LIB_NAME}
     "$<INSTALL_INTERFACE:include/>"
 )
 
+include_directories(${EIGEN3_INCLUDE_DIR})
 ament_target_dependencies(${CPP_LIB_NAME} rclcpp unitree_go std_msgs)
 
 install(
@@ -52,7 +54,7 @@ install(
 )
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
-ament_export_dependencies(rclcpp unitree_go std_msgs)
+ament_export_dependencies(rclcpp unitree_go std_msgs Eigen3)
 
 ########################
 # Global package files #

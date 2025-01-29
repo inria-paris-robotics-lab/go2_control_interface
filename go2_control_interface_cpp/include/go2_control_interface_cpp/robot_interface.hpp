@@ -1,12 +1,10 @@
 #pragma once
 
-#include <array>
-#include <cmath>
-
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/bool.hpp"
 #include "unitree_go/msg/low_cmd.hpp"
 #include "unitree_go/msg/low_state.hpp"
+#include <Eigen/Dense>
 
 /**
  * Maps the indices of elements in the source array to their corresponding
@@ -40,6 +38,8 @@ std::array<std::uint8_t, N> map_indices(std::array<std::string_view, N> source, 
 class Go2RobotInterface
 {
 public:
+  typedef Eigen::Vector<12, double> Vector12d;
+
   Go2RobotInterface(
     rclcpp::Node & node, const std::array<std::string_view, 12> source_joint_names = default_source_joint_order_);
 
@@ -59,15 +59,11 @@ public:
    * @param Kd derivative coefficients.
    */
   void send_command(
-    const std::array<float, 12> & q,
-    const std::array<float, 12> & v,
-    const std::array<float, 12> & tau,
-    const std::array<float, 12> & kp,
-    const std::array<float, 12> & kd);
+    const Vector12d & q, const Vector12d & v, const Vector12d & tau, const Vector12d & kp, const Vector12d & kd);
 
-  void start_async(const std::vector<float> & q_start, bool goto_config = true);
+  void start_async(const Vector12d & q_start, bool goto_config = true);
 
-  void register_callback(void (*callback)(float, std::vector<float>, std::vector<float>, std::vector<float>));
+  void register_callback(void (*callback)(double, Vector12d, Vector12d, Vector12d));
 
   /**
    * @brief Moves the robot to the initial pose.
@@ -78,9 +74,9 @@ public:
    * @param q_des_ The desired joint positions.
    * @param duration_ms The duration of the interpolation in seconds.
    */
-  void go_to_configuration(const std::array<float, 12> & q_des_, float duration_s);
+  void go_to_configuration(const Vector12d & q_des_, double duration_s);
 
-  void go_to_configuration_aux(const std::array<float, 12> & q_des_, float duration_s);
+  void go_to_configuration_aux(const Vector12d & q_des_, double duration_s);
 
   // Getters
   bool is_ready() const
@@ -91,19 +87,19 @@ public:
   {
     return is_safe_;
   }
-  const std::array<float, 12> & get_q() const
+  const Vector12d & get_q() const
   {
     return state_q_;
   }
-  const std::array<float, 12> & get_dq() const
+  const Vector12d & get_dq() const
   {
     return state_dq_;
   }
-  const std::array<float, 12> & get_ddq() const
+  const Vector12d & get_ddq() const
   {
     return state_ddq_;
   }
-  const std::array<float, 12> & get_tau() const
+  const Vector12d & get_tau() const
   {
     return state_tau_;
   }
@@ -166,11 +162,7 @@ private:
    * @param Kd derivative coefficients.
    */
   void send_command_aux(
-    const std::array<float, 12> & q,
-    const std::array<float, 12> & v,
-    const std::array<float, 12> & tau,
-    const std::array<float, 12> & kp,
-    const std::array<float, 12> & kd);
+    const Vector12d & q, const Vector12d & v, const Vector12d & tau, const Vector12d & kp, const Vector12d & kd);
   /// @brief The node handle
   rclcpp::Node & node_;
 
@@ -184,10 +176,10 @@ private:
   std::array<float, 3> imu_ang_vel_{}; ///< Angular velocity
 
   // Joint states (12 joints)
-  std::array<float, 12> state_q_{};   ///< Joint positions
-  std::array<float, 12> state_dq_{};  ///< Joint velocities
-  std::array<float, 12> state_ddq_{}; ///< Joint accelerations
-  std::array<float, 12> state_tau_{}; ///< Joint torques (Nm)
+  Vector12d state_q_{};   ///< Joint positions
+  Vector12d state_dq_{};  ///< Joint velocities
+  Vector12d state_ddq_{}; ///< Joint accelerations
+  Vector12d state_tau_{}; ///< Joint torques (Nm)
 
   // Messages
   unitree_go::msg::LowState::SharedPtr state_; ///< Pointer to the LowState message
