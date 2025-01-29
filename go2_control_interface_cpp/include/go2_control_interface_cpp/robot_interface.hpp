@@ -12,19 +12,23 @@
  * Maps the indices of elements in the source array to their corresponding
  * indices in the target array.
  *
- * @tparam T The type of elements in the arrays.
+ * Used for reordering the robot configuration depending on the joint order conventions.
+ *
  * @tparam N The size of the arrays.
- * @param source The source array.
- * @param target The target array.
+ * @param source The source order.
+ * @param target The target order.
  * @return An array of indices representing the mapping from source to target.
  */
-template <typename T, size_t N>
-std::array<std::uint8_t, N> map_indices(std::array<T, N> source,
-                                        std::array<T, N> target) {
+template<size_t N>
+std::array<std::uint8_t, N> map_indices(std::array<std::string_view, N> source, std::array<std::string_view, N> target)
+{
   std::array<std::uint8_t, N> permutation{0};
-  for (size_t i = 0; i < N; i++) {
-    for (size_t j = 0; j < N; j++) {
-      if (source[i] == target[j]) {
+  for (size_t i = 0; i < N; i++)
+  {
+    for (size_t j = 0; j < N; j++)
+    {
+      if (source[i] == target[j])
+      {
         permutation[i] = j;
         break;
       }
@@ -33,10 +37,11 @@ std::array<std::uint8_t, N> map_indices(std::array<T, N> source,
   return permutation;
 }
 
-class Go2RobotInterface {
- public:
-  Go2RobotInterface(rclcpp::Node &node,
-                    const std::array<std::string_view, 12> source_joint_names);
+class Go2RobotInterface
+{
+public:
+  Go2RobotInterface(
+    rclcpp::Node & node, const std::array<std::string_view, 12> source_joint_names = default_source_joint_order_);
 
   /**
    * @brief Sends motor commands to the `/lowstate` topic.
@@ -53,17 +58,16 @@ class Go2RobotInterface {
    * @param Kp Proportional coefficients,
    * @param Kd derivative coefficients.
    */
-  void send_command(const std::array<float, 12> &q,
-                    const std::array<float, 12> &v,
-                    const std::array<float, 12> &tau,
-                    const std::array<float, 12> &kp,
-                    const std::array<float, 12> &kd);
+  void send_command(
+    const std::array<float, 12> & q,
+    const std::array<float, 12> & v,
+    const std::array<float, 12> & tau,
+    const std::array<float, 12> & kp,
+    const std::array<float, 12> & kd);
 
-  void start_async(const std::vector<float> &q_start, bool goto_config = true);
+  void start_async(const std::vector<float> & q_start, bool goto_config = true);
 
-  void register_callback(void (*callback)(float, std::vector<float>,
-                                          std::vector<float>,
-                                          std::vector<float>));
+  void register_callback(void (*callback)(float, std::vector<float>, std::vector<float>, std::vector<float>));
 
   /**
    * @brief Moves the robot to the initial pose.
@@ -74,23 +78,45 @@ class Go2RobotInterface {
    * @param q_des_ The desired joint positions.
    * @param duration_ms The duration of the interpolation in seconds.
    */
-  void go_to_configuration(const std::array<float, 12> &q_des_,
-                           float duration_s);
+  void go_to_configuration(const std::array<float, 12> & q_des_, float duration_s);
 
-  void go_to_configuration_aux(const std::array<float, 12> &q_des_,
-                               float duration_s);
+  void go_to_configuration_aux(const std::array<float, 12> & q_des_, float duration_s);
 
   // Getters
-  bool is_ready() const { return is_ready_; }
-  bool is_safe() const { return is_safe_; }
-  const std::array<float, 12> &get_q() const { return state_q_; }
-  const std::array<float, 12> &get_dq() const { return state_dq_; }
-  const std::array<float, 12> &get_ddq() const { return state_ddq_; }
-  const std::array<float, 12> &get_tau() const { return state_tau_; }
-  const std::array<float, 3> &get_lin_acc() const { return imu_lin_acc_; }
-  const std::array<float, 3> &get_ang_vel() const { return imu_ang_vel_; }
+  bool is_ready() const
+  {
+    return is_ready_;
+  }
+  bool is_safe() const
+  {
+    return is_safe_;
+  }
+  const std::array<float, 12> & get_q() const
+  {
+    return state_q_;
+  }
+  const std::array<float, 12> & get_dq() const
+  {
+    return state_dq_;
+  }
+  const std::array<float, 12> & get_ddq() const
+  {
+    return state_ddq_;
+  }
+  const std::array<float, 12> & get_tau() const
+  {
+    return state_tau_;
+  }
+  const std::array<float, 3> & get_lin_acc() const
+  {
+    return imu_lin_acc_;
+  }
+  const std::array<float, 3> & get_ang_vel() const
+  {
+    return imu_ang_vel_;
+  }
 
- private:
+private:
   /**
    * @brief Initializes the command structure with default values.
    *
@@ -139,62 +165,66 @@ class Go2RobotInterface {
    * @param Kp Proportional coefficients,
    * @param Kd derivative coefficients.
    */
-  void send_command_aux(const std::array<float, 12> &q,
-                        const std::array<float, 12> &v,
-                        const std::array<float, 12> &tau,
-                        const std::array<float, 12> &kp,
-                        const std::array<float, 12> &kd);
+  void send_command_aux(
+    const std::array<float, 12> & q,
+    const std::array<float, 12> & v,
+    const std::array<float, 12> & tau,
+    const std::array<float, 12> & kp,
+    const std::array<float, 12> & kd);
   /// @brief The node handle
-  rclcpp::Node &node_;
+  rclcpp::Node & node_;
 
   // Safety flags
-  volatile bool is_ready_ =
-      false;  ///< True if the robot has been successfully initialised.
-  volatile bool is_safe_ = true;  ///< True if it is safe to publish commands.
+  volatile bool is_ready_ = false; ///< True if the robot has been successfully initialised.
+  volatile bool is_safe_ = true;   ///< True if it is safe to publish commands.
 
   // Robot state
   // Inertial state
-  std::array<float, 3> imu_lin_acc_{};  ///< Linear acceleration
-  std::array<float, 3> imu_ang_vel_{};  ///< Angular velocity
+  std::array<float, 3> imu_lin_acc_{}; ///< Linear acceleration
+  std::array<float, 3> imu_ang_vel_{}; ///< Angular velocity
 
   // Joint states (12 joints)
-  std::array<float, 12> state_q_{};    ///< Joint positions
-  std::array<float, 12> state_dq_{};   ///< Joint velocities
-  std::array<float, 12> state_ddq_{};  ///< Joint accelerations
-  std::array<float, 12> state_tau_{};  ///< Joint torques (Nm)
+  std::array<float, 12> state_q_{};   ///< Joint positions
+  std::array<float, 12> state_dq_{};  ///< Joint velocities
+  std::array<float, 12> state_ddq_{}; ///< Joint accelerations
+  std::array<float, 12> state_tau_{}; ///< Joint torques (Nm)
 
   // Messages
-  unitree_go::msg::LowState::SharedPtr
-      state_;                               ///< Pointer to the LowState message
-  unitree_go::msg::LowCmd::SharedPtr cmd_;  ///< Pointer to the LowCmd message
+  unitree_go::msg::LowState::SharedPtr state_; ///< Pointer to the LowState message
+  unitree_go::msg::LowCmd::SharedPtr cmd_;     ///< Pointer to the LowCmd message
 
-  rclcpp::TimerBase::SharedPtr timer_;  ///< Timer for publishing commands
+  rclcpp::TimerBase::SharedPtr timer_; ///< Timer for publishing commands
 
   // Subscribers
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr
-      watchdog_subscription_;  ///< Subscription to the "/watchdog/is_safe"
-                               ///< topic
+    watchdog_subscription_; ///< Subscription to the "/watchdog/is_safe" topic
 
-  rclcpp::Subscription<unitree_go::msg::LowState>::SharedPtr
-      state_subscription_;  ///< Subscription to the state topic
+  rclcpp::Subscription<unitree_go::msg::LowState>::SharedPtr state_subscription_; ///< Subscription to the state topic
 
   // Publishers
-  rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr
-      watchdog_publisher_;  ///< Publisher for the "/watchdog/arm" topic
-  rclcpp::Publisher<unitree_go::msg::LowCmd>::SharedPtr
-      command_publisher_;  ///< Publisher for the command topic
+  rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr watchdog_publisher_;    ///< Publisher for the "/watchdog/arm" topic
+  rclcpp::Publisher<unitree_go::msg::LowCmd>::SharedPtr command_publisher_; ///< Publisher for the command topic
 
   rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr
-      parameter_callback_handle_;  ///< Handle for the parameter callback
+    parameter_callback_handle_; ///< Handle for the parameter callback
 
-  // Joint names in the order that the controller is expecting them.
-  const std::array<std::string_view, 12> source_joint_names_;
+  // clang-format off
+  // Joint names in the order that the user is expecting them by default (URDF alphabetical order).
+  static constexpr std::array<std::string_view, 12> default_source_joint_order_ = {
+    "FL_hip_joint", "FL_thigh_joint", "FL_calf_joint",
+    "FR_hip_joint", "FR_thigh_joint", "FR_calf_joint",
+    "RL_hip_joint", "RL_thigh_joint", "RL_calf_joint"
+    "RR_hip_joint", "RR_thigh_joint", "RR_calf_joint",
+  };
 
   // Joint names in the order that the robot is expecting them.
-  static constexpr std::array<std::string_view, 12> target_joint_names_ = {
-      "FR_hip_joint",   "FR_thigh_joint", "FR_calf_joint",  "FL_hip_joint",
-      "FL_thigh_joint", "FL_calf_joint",  "RR_hip_joint",   "RR_thigh_joint",
-      "RR_calf_joint",  "RL_hip_joint",   "RL_thigh_joint", "RL_calf_joint"};
+  static constexpr std::array<std::string_view, 12> target_joint_order_ = {
+    "FR_hip_joint", "FR_thigh_joint", "FR_calf_joint",
+    "FL_hip_joint", "FL_thigh_joint", "FL_calf_joint",
+    "RR_hip_joint", "RR_thigh_joint", "RR_calf_joint",
+    "RL_hip_joint", "RL_thigh_joint", "RL_calf_joint"
+  };
+  // clang-format on
 
   // Map indices between source and target joint orderings
   const std::array<uint8_t, 12> idx_source_in_target_;
