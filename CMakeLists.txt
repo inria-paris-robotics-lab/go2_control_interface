@@ -25,20 +25,21 @@ find_package(rclcpp REQUIRED)
 find_package(unitree_go REQUIRED)
 find_package(std_msgs REQUIRED)
 
-file(GLOB CPP_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*)
+file(GLOB CPP_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/${CPP_LIB_NAME})
+file(GLOB CPP_SOURCE_FILES ${CPP_SOURCE_DIR}/src/*)
 
-add_library(${CPP_LIB_NAME} STATIC ${CPP_SRC})
+add_library(${CPP_LIB_NAME} STATIC ${CPP_SOURCE_FILES})
 
 target_include_directories(${CPP_LIB_NAME}
   PUBLIC
-    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+    "$<BUILD_INTERFACE:${CPP_SOURCE_DIR}/include>"
     "$<INSTALL_INTERFACE:include/>"
 )
 
 ament_target_dependencies(${CPP_LIB_NAME} rclcpp unitree_go std_msgs)
 
 install(
-  DIRECTORY include/
+  DIRECTORY ${CPP_SOURCE_DIR}/include/
   DESTINATION include/
 )
 
