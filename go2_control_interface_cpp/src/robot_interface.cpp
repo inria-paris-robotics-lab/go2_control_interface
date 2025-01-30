@@ -5,11 +5,13 @@
 #include "std_msgs/msg/bool.hpp"
 #include "unitree_go/msg/low_cmd.hpp"
 #include "unitree_go/msg/low_state.hpp"
+#include <cstddef>
 
 Go2RobotInterface::Go2RobotInterface(rclcpp::Node & node, const std::array<std::string_view, 12> source_joint_order)
 : node_(node)
 , is_ready_(false)
 , is_safe_(false)
+, state_cb_(nullptr)
 , state_t_(0)
 , idx_source_in_target_(map_indices(source_joint_order, target_joint_order_))
 , idx_target_in_source_(map_indices(target_joint_order_, source_joint_order))
@@ -56,6 +58,11 @@ void Go2RobotInterface::initialize_command(unitree_go::msg::LowCmd & cmd)
     m_cmd_.tau = 0;
   }
 };
+
+void Go2RobotInterface::register_callback(void (*callback)(double, Vector12d, Vector12d, Vector12d))
+{
+  this->state_cb_ = callback;
+}
 
 void Go2RobotInterface::send_command(
   const Vector12d & q, const Vector12d & v, const Vector12d & tau, const Vector12d & kp, const Vector12d & kd)
@@ -218,6 +225,12 @@ void Go2RobotInterface::consume_state(const unitree_go::msg::LowState::SharedPtr
   }
 
   this->state_t_ = t;
+
+  // Call user callback if set
+  if (this->state_cb_)
+  {
+    state_cb_(state_t_.seconds(), state_q_, state_dq_, state_ddq_);
+  }
 }
 
 void Go2RobotInterface::consume_watchdog(const std_msgs::msg::Bool::SharedPtr msg)

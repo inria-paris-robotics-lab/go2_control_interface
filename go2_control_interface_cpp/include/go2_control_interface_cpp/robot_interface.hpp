@@ -190,7 +190,9 @@ private:
   volatile bool is_ready_; ///< True if the robot has been successfully initialised.
   volatile bool is_safe_;  ///< True if it is safe to publish commands.
 
-  // Robot state
+  // Robot state callback
+  void (*state_cb_)(double, Vector12d, Vector12d, Vector12d); ///> User callback to receive state
+  // Robot state async
   rclcpp::Time state_t_; ///< Time when last state was received.
   Vector12d state_q_;    ///< Joint positions (rad)
   Vector12d state_dq_;   ///< Joint velocities (rad/s)
