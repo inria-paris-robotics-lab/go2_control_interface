@@ -5,6 +5,7 @@
 #include "unitree_go/msg/low_cmd.hpp"
 #include "unitree_go/msg/low_state.hpp"
 #include <Eigen/Dense>
+#include <chrono>
 
 /**
  * Maps the indices of elements in the source array to their corresponding
@@ -96,6 +97,12 @@ public:
     return is_safe_;
   }
 
+  /// @brief Time (in s) when last state was measured.
+  double get_t() const
+  {
+    return state_t_.seconds();
+  }
+
   /// @brief Last configuration measured.
   const Vector12d & get_q() const
   {
@@ -184,14 +191,18 @@ private:
   volatile bool is_safe_;  ///< True if it is safe to publish commands.
 
   // Robot state
-  Vector12d state_q_;   ///< Joint positions (rad)
-  Vector12d state_dq_;  ///< Joint velocities (rad/s)
-  Vector12d state_ddq_; ///< Joint accelerations (rad/s²)
+  rclcpp::Time state_t_; ///< Time when last state was received.
+  Vector12d state_q_;    ///< Joint positions (rad)
+  Vector12d state_dq_;   ///< Joint velocities (rad/s)
+  Vector12d state_ddq_;  ///< Joint accelerations (rad/s²)
 
   // Scaling factors
   double scaling_glob_; ///< Scaling factor applied on kp, kd, tau when sending commands
   double scaling_gain_; ///< Scaling factor applied on kp, kd when sending commands
   double scaling_ff_;   ///< Scaling factor applied on tau when sending commands
+
+  // Parameter to filter the velocity (as it is quite noisy on the real go2 robot)
+  double filter_fq_; ///< Cut-off frequency of the filter
 
   // Messages
   unitree_go::msg::LowCmd cmd_; ///< Pointer to a pre-filled LowCmd message

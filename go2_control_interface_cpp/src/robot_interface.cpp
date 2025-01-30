@@ -10,6 +10,7 @@ Go2RobotInterface::Go2RobotInterface(rclcpp::Node & node, const std::array<std::
 : node_(node)
 , is_ready_(false)
 , is_safe_(false)
+, state_t_(0)
 , idx_source_in_target_(map_indices(source_joint_order, target_joint_order_))
 , idx_target_in_source_(map_indices(target_joint_order_, source_joint_order))
 {
@@ -21,6 +22,8 @@ Go2RobotInterface::Go2RobotInterface(rclcpp::Node & node, const std::array<std::
   scaling_glob_ = node.declare_parameter("scaling_glob", 1.0);
   scaling_gain_ = node.declare_parameter("scaling_gain", 1.0);
   scaling_ff_ = node.declare_parameter("scaling_ff", 1.0);
+
+  filter_fq_ = node.declare_parameter("joint_filter_fq", -1.0); // By default no filter
 
   // Subscribe to the /lowstate and /watchdog/is_safe topics
   state_subscription_ = node_.create_subscription<unitree_go::msg::LowState>(
@@ -187,15 +190,34 @@ void Go2RobotInterface::go_to_configuration(const Vector12d & q_des, double dura
 
 void Go2RobotInterface::consume_state(const unitree_go::msg::LowState::SharedPtr msg)
 {
+  const rclcpp::Time t = node_.now();
+
   // Copy and re-order motor state
+  Vector12d q_meas, dq_meas, ddq_meas;
   for (size_t source_idx = 0; source_idx < 12; source_idx++)
   {
     const size_t target_idx = idx_source_in_target_[source_idx];
-
-    state_q_[source_idx] = msg->motor_state[target_idx].q;
-    state_dq_[source_idx] = msg->motor_state[target_idx].dq;
-    state_ddq_[source_idx] = msg->motor_state[target_idx].ddq;
+    q_meas[source_idx] = msg->motor_state[target_idx].q;
+    dq_meas[source_idx] = msg->motor_state[target_idx].dq;
+    ddq_meas[source_idx] = msg->motor_state[target_idx].ddq;
   }
+
+  if (this->state_t_.nanoseconds() == 0 || this->filter_fq_ <= 0.)
+  {
+    // No filtering to do on first point
+    state_q_ = q_meas;
+    state_dq_ = dq_meas;
+    state_ddq_ = ddq_meas;
+  }
+  else
+  {
+    const double b = 1. / (1 + 2 * 3.14 * (t - this->state_t_).seconds() * this->filter_fq_);
+    state_q_ = (1 - b) * q_meas + b * state_q_;
+    state_dq_ = (1 - b) * dq_meas + b * state_dq_;
+    state_ddq_ = (1 - b) * ddq_meas + b * state_ddq_;
+  }
+
+  this->state_t_ = t;
 }
 
 void Go2RobotInterface::consume_watchdog(const std_msgs::msg::Bool::SharedPtr msg)
