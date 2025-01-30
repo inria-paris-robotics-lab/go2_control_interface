@@ -188,6 +188,11 @@ private:
   Vector12d state_dq_;  ///< Joint velocities (rad/s)
   Vector12d state_ddq_; ///< Joint accelerations (rad/s²)
 
+  // Scaling factors
+  double scaling_glob_; ///< Scaling factor applied on kp, kd, tau when sending commands
+  double scaling_gain_; ///< Scaling factor applied on kp, kd when sending commands
+  double scaling_ff_;   ///< Scaling factor applied on tau when sending commands
+
   // Messages
   unitree_go::msg::LowCmd cmd_; ///< Pointer to a pre-filled LowCmd message
 

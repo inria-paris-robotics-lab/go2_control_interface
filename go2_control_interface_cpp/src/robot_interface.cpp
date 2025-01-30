@@ -17,6 +17,11 @@ Go2RobotInterface::Go2RobotInterface(rclcpp::Node & node, const std::array<std::
   watchdog_publisher_ = node.create_publisher<std_msgs::msg::Bool>("/watchdog/arm", 10);
   command_publisher_ = node.create_publisher<unitree_go::msg::LowCmd>("/lowcmd", 10);
 
+  // Read node parameters
+  scaling_glob_ = node.declare_parameter("scaling_glob", 1.0);
+  scaling_gain_ = node.declare_parameter("scaling_gain", 1.0);
+  scaling_ff_ = node.declare_parameter("scaling_ff", 1.0);
+
   // Subscribe to the /lowstate and /watchdog/is_safe topics
   state_subscription_ = node_.create_subscription<unitree_go::msg::LowState>(
     "/lowstate", 10, std::bind(&Go2RobotInterface::consume_state, this, std::placeholders::_1));
@@ -78,9 +83,9 @@ void Go2RobotInterface::send_command_aux(
       size_t target_idx = idx_source_in_target_[source_idx];
       cmd_.motor_cmd[target_idx].q = q[source_idx];
       cmd_.motor_cmd[target_idx].dq = v[source_idx];
-      cmd_.motor_cmd[target_idx].tau = tau[source_idx];
-      cmd_.motor_cmd[target_idx].kp = kp[source_idx];
-      cmd_.motor_cmd[target_idx].kd = kd[source_idx];
+      cmd_.motor_cmd[target_idx].tau = (this->scaling_glob_ * this->scaling_ff_) * tau[source_idx];
+      cmd_.motor_cmd[target_idx].kp = (this->scaling_glob_ * this->scaling_gain_) * kp[source_idx];
+      cmd_.motor_cmd[target_idx].kd = (this->scaling_glob_ * this->scaling_gain_) * kd[source_idx];
     }
 
     // CRC the command -- this is a checksum
