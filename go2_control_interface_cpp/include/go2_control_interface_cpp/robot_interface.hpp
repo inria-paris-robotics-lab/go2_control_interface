@@ -38,85 +38,85 @@ std::array<std::uint8_t, N> map_indices(std::array<std::string_view, N> source, 
 class Go2RobotInterface
 {
 public:
-  typedef Eigen::Vector<12, double> Vector12d;
+  typedef Eigen::Vector<double, 12> Vector12d;
 
   Go2RobotInterface(
     rclcpp::Node & node, const std::array<std::string_view, 12> source_joint_names = default_source_joint_order_);
 
   /**
-   * @brief Sends motor commands to the `/lowstate` topic.
+   * @brief Sends commands to the robot motors.
    *
-   * This method will throw if the robot is still being initialised, or
-   * the watchdog `is_safe_` flag is false.
+   * This method will throw if the robot has not been initialised completely,
+   * or if the watchdog `is_safe_` flag is false.
    *
    * All input arrays are in source (i.e. controller) order, and will be
-   * reordered to match
+   * reordered to match robot hardware
    *
-   * @param q Target positions,
-   * @param v Target velocities,
+   * @param q Target positions (rad),
+   * @param v Target velocities (rad/s),
    * @param tau Feed-forward torques (Nm),
    * @param Kp Proportional coefficients,
-   * @param Kd derivative coefficients.
+   * @param Kd Derivative coefficients.
    */
   void send_command(
     const Vector12d & q, const Vector12d & v, const Vector12d & tau, const Vector12d & kp, const Vector12d & kd);
 
+  /**
+   * @brief Initialize the robot and set it to a start configuration.
+   * This function is non-blocking, (and run the start procedure in a different thread).
+   *
+   * @warning The user has to wait "manually" for the flag `is_ready()` to be set, before trying to send commands to the
+   * robot.
+   *
+   * @note This function also handles the watchdog initialization and expect to be able to communicate with it.
+   *
+   * @param q_start Start configuration to put the robot in.
+   * @param goto_config If set to false, the robot won't go into the start configuration, and will just be initialized
+   * without.
+   */
   void start_async(const Vector12d & q_start, bool goto_config = true);
 
+  /**
+   * @brief Register a callback to receive the robot state as soon as it is published.
+   *
+   * @param callback The callback function should have the following arguments
+   * (double time, Vector12d q_meas, Vector12d a_meas, Vector12d tau_meas)
+   */
   void register_callback(void (*callback)(double, Vector12d, Vector12d, Vector12d));
 
-  /**
-   * @brief Moves the robot to the initial pose.
-   *
-   * This function moves the robot to the initial pose by interpolating the
-   * joint positions from the current state to the initial pose.
-   *
-   * @param q_des_ The desired joint positions.
-   * @param duration_ms The duration of the interpolation in seconds.
-   */
-  void go_to_configuration(const Vector12d & q_des_, double duration_s);
-
-  void go_to_configuration_aux(const Vector12d & q_des_, double duration_s);
-
-  // Getters
+  /// @brief Is the robot initialized properly and ready to control.
   bool is_ready() const
   {
     return is_ready_;
   }
+
+  /// @brief Is the watchdog saying that the robot is safe to control.
   bool is_safe() const
   {
     return is_safe_;
   }
+
+  /// @brief Last configuration measured.
   const Vector12d & get_q() const
   {
     return state_q_;
   }
+
+  /// @brief Last velocity measured.
   const Vector12d & get_dq() const
   {
     return state_dq_;
   }
+
+  /// @brief Last acceleration measured.
   const Vector12d & get_ddq() const
   {
     return state_ddq_;
   }
-  const Vector12d & get_tau() const
-  {
-    return state_tau_;
-  }
-  const std::array<float, 3> & get_lin_acc() const
-  {
-    return imu_lin_acc_;
-  }
-  const std::array<float, 3> & get_ang_vel() const
-  {
-    return imu_ang_vel_;
-  }
 
 private:
   /**
-   * @brief Initializes the command structure with default values.
-   *
-   * This function sets up the command structure `cmd_` with initial values:
+   * @brief Initializes the cmd packet with default values.
    *
    * - `head = {0xEF, 0xEF}`,
    * - `level_flag = 0`,
@@ -126,34 +126,34 @@ private:
    * - `fan = {0, 0}`,
    * - `reserve = 0`,
    * - `led` is a 12-element array of zeros.
+   * - `motor_cmd[].mode = 1` for torque control (with ff-pid)
    */
-  void initialize_command();
+  void initialize_command(unitree_go::msg::LowCmd & cmd);
 
   /**
-   * @brief Consumes the state message.
-   *
-   * This function consumes the state message and stores it in the `state_`
-   * member variable.
-   *
-   * @param msg The LowState message to consume.
+   * @brief ROS callback to consumes the state message and store it in the `state_` member variable.
    */
   void consume_state(const unitree_go::msg::LowState::SharedPtr msg);
 
   /**
-   * @brief Consumes the `/watchdog/is_safe` message.
+   * @brief ROS callback to keep track of the watchdog 'is_safe' topic.
    *
-   * This function consumes the safety message and stores it in the `is_safe_`
-   * member variable.
-   *
-   * @param msg The Bool message to consume.
+   * Stores the value in the `is_safe_` member variable.
    */
-  void consume(const std_msgs::msg::Bool::SharedPtr msg);
+  void consume_watchdog(const std_msgs::msg::Bool::SharedPtr msg);
+
+  /**
+   * @brief Execute the `start_async` logic in a synchronous/blocking way.
+   */
+  void start_aux(const Vector12d & q_start, bool goto_config);
 
   /**
    * @brief Sends motor commands to the `/lowstate` topic.
    *
    * All input arrays are in source (i.e. controller) order, and will be
-   * reordered to match
+   * reordered to match.
+   *
+   * @warning This function doesn't check for the robot to be properly initialized.
    *
    * @param q Target positions,
    * @param v Target velocities,
@@ -163,45 +163,46 @@ private:
    */
   void send_command_aux(
     const Vector12d & q, const Vector12d & v, const Vector12d & tau, const Vector12d & kp, const Vector12d & kd);
+
+  /**
+   * @brief Moves the robot to a given configuration (with position control).
+   *
+   * This function moves the robot to configuration by interpolating the
+   * joint positions from the current state to the goal state.
+   * This function call is blocking until the configuration is reached.
+   *
+   * @param q_des_ The desired joint positions.
+   * @param duration_ms The duration of the interpolation in seconds.
+   */
+  void go_to_configuration(const Vector12d & q_des_, double duration_s);
+
   /// @brief The node handle
   rclcpp::Node & node_;
 
   // Safety flags
-  volatile bool is_ready_ = false; ///< True if the robot has been successfully initialised.
-  volatile bool is_safe_ = true;   ///< True if it is safe to publish commands.
+  volatile bool is_ready_; ///< True if the robot has been successfully initialised.
+  volatile bool is_safe_;  ///< True if it is safe to publish commands.
 
   // Robot state
-  // Inertial state
-  std::array<float, 3> imu_lin_acc_{}; ///< Linear acceleration
-  std::array<float, 3> imu_ang_vel_{}; ///< Angular velocity
-
-  // Joint states (12 joints)
-  Vector12d state_q_{};   ///< Joint positions
-  Vector12d state_dq_{};  ///< Joint velocities
-  Vector12d state_ddq_{}; ///< Joint accelerations
-  Vector12d state_tau_{}; ///< Joint torques (Nm)
+  Vector12d state_q_;   ///< Joint positions (rad)
+  Vector12d state_dq_;  ///< Joint velocities (rad/s)
+  Vector12d state_ddq_; ///< Joint accelerations (rad/s²)
 
   // Messages
-  unitree_go::msg::LowState::SharedPtr state_; ///< Pointer to the LowState message
-  unitree_go::msg::LowCmd::SharedPtr cmd_;     ///< Pointer to the LowCmd message
-
-  rclcpp::TimerBase::SharedPtr timer_; ///< Timer for publishing commands
+  unitree_go::msg::LowCmd cmd_; ///< Pointer to a pre-filled LowCmd message
 
   // Subscribers
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr
     watchdog_subscription_; ///< Subscription to the "/watchdog/is_safe" topic
-
-  rclcpp::Subscription<unitree_go::msg::LowState>::SharedPtr state_subscription_; ///< Subscription to the state topic
+  rclcpp::Subscription<unitree_go::msg::LowState>::SharedPtr
+    state_subscription_; ///< Subscription to the robot state topic
 
   // Publishers
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr watchdog_publisher_;    ///< Publisher for the "/watchdog/arm" topic
-  rclcpp::Publisher<unitree_go::msg::LowCmd>::SharedPtr command_publisher_; ///< Publisher for the command topic
-
-  rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr
-    parameter_callback_handle_; ///< Handle for the parameter callback
+  rclcpp::Publisher<unitree_go::msg::LowCmd>::SharedPtr command_publisher_; ///< Publisher for the robot command topic
 
   // clang-format off
-  // Joint names in the order that the user is expecting them by default (URDF alphabetical order).
+  /// @brief Joint names in the order that the user is expecting them by default (URDF alphabetical order).
   static constexpr std::array<std::string_view, 12> default_source_joint_order_ = {
     "FL_hip_joint", "FL_thigh_joint", "FL_calf_joint",
     "FR_hip_joint", "FR_thigh_joint", "FR_calf_joint",
@@ -209,7 +210,7 @@ private:
     "RR_hip_joint", "RR_thigh_joint", "RR_calf_joint",
   };
 
-  // Joint names in the order that the robot is expecting them.
+  /// @brief Joint names in the order that the robot is expecting them.
   static constexpr std::array<std::string_view, 12> target_joint_order_ = {
     "FR_hip_joint", "FR_thigh_joint", "FR_calf_joint",
     "FL_hip_joint", "FL_thigh_joint", "FL_calf_joint",
@@ -218,7 +219,7 @@ private:
   };
   // clang-format on
 
-  // Map indices between source and target joint orderings
+  /// @brief Map indices between source and target joint orderings
   const std::array<uint8_t, 12> idx_source_in_target_;
   const std::array<uint8_t, 12> idx_target_in_source_;
 };

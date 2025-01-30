@@ -8,8 +8,8 @@
 
 Go2RobotInterface::Go2RobotInterface(rclcpp::Node & node, const std::array<std::string_view, 12> source_joint_order)
 : node_(node)
-, state_(std::make_shared<unitree_go::msg::LowState>())
-, cmd_(std::make_shared<unitree_go::msg::LowCmd>())
+, is_ready_(false)
+, is_safe_(false)
 , idx_source_in_target_(map_indices(source_joint_order, target_joint_order_))
 , idx_target_in_source_(map_indices(target_joint_order_, source_joint_order))
 {
@@ -18,30 +18,29 @@ Go2RobotInterface::Go2RobotInterface(rclcpp::Node & node, const std::array<std::
   command_publisher_ = node.create_publisher<unitree_go::msg::LowCmd>("/lowcmd", 10);
 
   // Subscribe to the /lowstate and /watchdog/is_safe topics
-  auto state_callback = [this](const unitree_go::msg::LowState::SharedPtr msg) { consume_state(msg); };
-  state_subscription_ = node_.create_subscription<unitree_go::msg::LowState>("/lowstate", 10, state_callback);
-
-  auto watchdog_callback = [this](const std_msgs::msg::Bool::SharedPtr msg) { consume(msg); };
-  watchdog_subscription_ = node.create_subscription<std_msgs::msg::Bool>("/watchdog/is_safe", 10, watchdog_callback);
+  state_subscription_ = node_.create_subscription<unitree_go::msg::LowState>(
+    "/lowstate", 10, std::bind(&Go2RobotInterface::consume_state, this, std::placeholders::_1));
+  watchdog_subscription_ = node.create_subscription<std_msgs::msg::Bool>(
+    "/watchdog/is_safe", 10, std::bind(&Go2RobotInterface::consume_watchdog, this, std::placeholders::_1));
 
   // Initialize the command
-  initialize_command();
+  initialize_command(cmd_);
 };
 
-void Go2RobotInterface::initialize_command()
+void Go2RobotInterface::initialize_command(unitree_go::msg::LowCmd & cmd)
 {
-  cmd_->head = {0xFE, 0xEF};
-  cmd_->level_flag = 0;
-  cmd_->frame_reserve = 0;
-  cmd_->sn = {0, 0};
-  cmd_->bandwidth = 0;
-  cmd_->fan = {0, 0};
-  cmd_->reserve = 0;
-  cmd_->led = std::array<uint8_t, 12>{};
+  cmd.head = {0xFE, 0xEF};
+  cmd.level_flag = 0;
+  cmd.frame_reserve = 0;
+  cmd.sn = {0, 0};
+  cmd.bandwidth = 0;
+  cmd.fan = {0, 0};
+  cmd.reserve = 0;
+  cmd.led = std::array<uint8_t, 12>{};
 
-  for (auto & m_cmd_ : cmd_->motor_cmd)
+  for (unitree_go::msg::MotorCmd & m_cmd_ : cmd.motor_cmd)
   {
-    m_cmd_.mode = 1;
+    m_cmd_.mode = 1; // Torque control mode with with internal feed-forward PID
     m_cmd_.q = 0;
     m_cmd_.dq = 0;
     m_cmd_.kp = 0;
@@ -77,86 +76,93 @@ void Go2RobotInterface::send_command_aux(
     for (size_t source_idx = 0; source_idx < 12; source_idx++)
     {
       size_t target_idx = idx_source_in_target_[source_idx];
-      cmd_->motor_cmd[target_idx].q = q[source_idx];
-      cmd_->motor_cmd[target_idx].dq = v[source_idx];
-      cmd_->motor_cmd[target_idx].tau = tau[source_idx];
-      cmd_->motor_cmd[target_idx].kp = kp[source_idx];
-      cmd_->motor_cmd[target_idx].kd = kd[source_idx];
+      cmd_.motor_cmd[target_idx].q = q[source_idx];
+      cmd_.motor_cmd[target_idx].dq = v[source_idx];
+      cmd_.motor_cmd[target_idx].tau = tau[source_idx];
+      cmd_.motor_cmd[target_idx].kp = kp[source_idx];
+      cmd_.motor_cmd[target_idx].kd = kd[source_idx];
     }
 
-    std::cout << "send_command_aux() ------------------" << std::endl;
-
     // CRC the command -- this is a checksum
-    get_crc(*cmd_.get());
+    get_crc(cmd_);
 
     // Publish the command
-    command_publisher_->publish(*cmd_.get());
+    command_publisher_->publish(cmd_);
   }
 };
 
-void Go2RobotInterface::go_to_configuration_aux(const Vector12d & q_des, double duration_s)
+void Go2RobotInterface::start_async(const Vector12d & q_start, bool goto_config)
+{
+  // Run aux in a separate thread
+  std::thread t(&Go2RobotInterface::start_aux, this, q_start, goto_config);
+  t.detach();
+}
+
+void Go2RobotInterface::start_aux(const Vector12d & q_start, bool goto_config)
+{
+  std_msgs::msg::Bool msg;
+  msg.data = true;
+  watchdog_publisher_->publish(msg);
+
+  RCLCPP_INFO(node_.get_logger(), "Waiting for watchdog to be armed...");
+  while (!this->is_safe_ && rclcpp::ok())
+  {
+    rclcpp::sleep_for(std::chrono::milliseconds(100));
+  }
+
+  if (goto_config)
+  {
+    RCLCPP_INFO(node_.get_logger(), "Going to start configuration...");
+    go_to_configuration(q_start, 5.0);
+    RCLCPP_INFO(node_.get_logger(), "Start configuration reached.");
+  }
+  else
+  {
+    RCLCPP_INFO(node_.get_logger(), "Skipping start configuration, set command to zero");
+    send_command_aux(Vector12d::Zero(), Vector12d::Zero(), Vector12d::Zero(), Vector12d::Zero(), Vector12d::Zero());
+  }
+  this->is_ready_ = true;
+}
+
+void Go2RobotInterface::go_to_configuration(const Vector12d & q_des, double duration_s)
 {
   // Check that duration is positive
   if (duration_s <= 0)
   {
     throw std::runtime_error("Duration must be strictly positive!");
   }
-  // Zero-array for velocities and torques
-  Vector12d zeroes{};
-  std::fill(zeroes.begin(), zeroes.end(), 0.0);
 
-  // Kp and Kd arrays
-  Vector12d kp_array{};
-  std::fill(kp_array.begin(), kp_array.end(), 150.0);
-
-  Vector12d kd_array{};
-  std::fill(kd_array.begin(), kd_array.end(), 1.0);
-
-  // Get the current time
-  auto start_time = node_.now();
-
-  // Set up rate limiter
-  auto rate = rclcpp::Rate(100); // 100 Hz
-
-  // Sleep for a second to allow the robot to stabilise
+  // Sleep for a second to allow the robot to stabilize
   rclcpp::sleep_for(std::chrono::seconds(1));
 
-  auto start_q = state_q_;
+  // Set up rate limiter to control the robot
+  rclcpp::Rate rate(500); // Hz
+
+  // Get the current state
+  Vector12d start_q = state_q_;
+  rclcpp::Time start_time = node_.now();
 
   // Interpolate the joint positions
-  while (rclcpp::ok())
+  while (this->is_safe_ && rclcpp::ok())
   {
-    // Get the current time
-    auto current_time = node_.now() - start_time;
-
-    // Calculate the interpolation factor
-    double alpha = current_time.seconds() / duration_s;
+    // Compute the interpolation factor
+    const rclcpp::Duration delta_time = node_.now() - start_time;
+    double alpha = delta_time.seconds() / duration_s;
 
     // Check if the interpolation is complete
     if (alpha >= 1.5)
     {
-      std::cout << "TIME EXCEEDED WE ARE BREAKING!!!!!! " << std::endl;
       break;
     }
 
+    // Clip alpha to max 1.
     alpha = alpha > 1.0 ? 1.0 : alpha;
 
     // Interpolate the joint positions
-    Vector12d q_step{};
-    for (size_t source_idx = 0; source_idx < 12; source_idx++)
-    {
-      q_step[source_idx] = start_q[source_idx] + alpha * (q_des[source_idx] - start_q[source_idx]);
-    }
-
-    std::cout << "q_state --- q_step: " << std::endl;
-    for (size_t i = 0; i < 12; i++)
-    {
-      std::cout << i << ": " << state_q_[i] << " ---- " << q_step[i] << std::endl;
-    }
-    std::cout << std::endl;
+    const Vector12d q_step = start_q + alpha * (q_des - start_q);
 
     // Send the command
-    send_command_aux(q_step, zeroes, zeroes, kp_array, kd_array);
+    send_command_aux(q_step, Vector12d::Zero(), Vector12d::Zero(), 150. * Vector12d::Ones(), 1. * Vector12d::Ones());
 
     // Sleep for a while
     rate.sleep();
@@ -172,46 +178,22 @@ void Go2RobotInterface::go_to_configuration_aux(const Vector12d & q_des, double 
       throw std::runtime_error("Interpolation failed, error is: " + std::to_string(error));
     }
   }
-
-  RCLCPP_INFO(node_.get_logger(), "Interpolation complete!");
-  is_ready_ = true;
-};
-
-void Go2RobotInterface::go_to_configuration(const Vector12d & q_des, double duration_s)
-{
-  auto msg = std_msgs::msg::Bool();
-  msg.data = true;
-  watchdog_publisher_->publish(msg);
-  // Run aux in a separate thread
-  std::thread t(&Go2RobotInterface::go_to_configuration_aux, this, q_des, duration_s);
-  t.detach();
 };
 
 void Go2RobotInterface::consume_state(const unitree_go::msg::LowState::SharedPtr msg)
 {
-  // Copy the /lowstate message
-  state_ = msg;
-
-  // Process the motor states
+  // Copy and re-order motor state
   for (size_t source_idx = 0; source_idx < 12; source_idx++)
   {
-    size_t target_idx = idx_source_in_target_[source_idx];
-    state_q_[source_idx] = state_->motor_state[target_idx].q;
-    state_dq_[source_idx] = state_->motor_state[target_idx].dq;
-    state_ddq_[source_idx] = state_->motor_state[target_idx].ddq;
-    state_tau_[source_idx] = state_->motor_state[target_idx].tau_est;
-  }
+    const size_t target_idx = idx_source_in_target_[source_idx];
 
-  // Process the IMU state
-  for (size_t i = 0; i < 3; i++)
-  {
-    imu_lin_acc_[i] = state_->imu_state.accelerometer[i];
-    imu_ang_vel_[i] = state_->imu_state.gyroscope[i];
+    state_q_[source_idx] = msg->motor_state[target_idx].q;
+    state_dq_[source_idx] = msg->motor_state[target_idx].dq;
+    state_ddq_[source_idx] = msg->motor_state[target_idx].ddq;
   }
 }
 
-void Go2RobotInterface::consume(const std_msgs::msg::Bool::SharedPtr msg)
+void Go2RobotInterface::consume_watchdog(const std_msgs::msg::Bool::SharedPtr msg)
 {
-  // Copy the /watchdog/is_safe message
-  is_safe_ = msg->data;
+  this->is_safe_ = msg->data;
 }
