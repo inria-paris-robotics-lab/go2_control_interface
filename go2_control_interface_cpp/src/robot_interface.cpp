@@ -11,7 +11,7 @@ Go2RobotInterface::Go2RobotInterface(rclcpp::Node & node, const std::array<std::
 : node_(node)
 , is_ready_(false)
 , is_safe_(false)
-, state_cb_(nullptr)
+, m_pfnStateCb_(nullptr)
 , state_t_(0)
 , idx_source_in_target_(map_indices(source_joint_order, target_joint_order_))
 , idx_target_in_source_(map_indices(target_joint_order_, source_joint_order))
@@ -59,9 +59,9 @@ void Go2RobotInterface::initialize_command(unitree_go::msg::LowCmd & cmd)
   }
 };
 
-void Go2RobotInterface::register_callback(void (*callback)(double, Vector12d, Vector12d, Vector12d))
+void Go2RobotInterface::register_callback(fnStateCb callback)
 {
-  this->state_cb_ = callback;
+  this->m_pfnStateCb_ = callback;
 }
 
 void Go2RobotInterface::send_command(
@@ -227,9 +227,9 @@ void Go2RobotInterface::consume_state(const unitree_go::msg::LowState::SharedPtr
   this->state_t_ = t;
 
   // Call user callback if set
-  if (this->state_cb_)
+  if (this->m_pfnStateCb_)
   {
-    state_cb_(state_t_.seconds(), state_q_, state_dq_, state_ddq_);
+    m_pfnStateCb_(state_t_.seconds(), state_q_, state_dq_, state_ddq_);
   }
 }
 

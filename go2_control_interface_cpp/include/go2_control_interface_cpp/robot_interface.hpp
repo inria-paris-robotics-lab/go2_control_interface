@@ -40,6 +40,7 @@ class Go2RobotInterface
 {
 public:
   typedef Eigen::Vector<double, 12> Vector12d;
+  typedef std::function<void(double t, Vector12d q, Vector12d dq, Vector12d ddq)> fnStateCb;
 
   Go2RobotInterface(
     rclcpp::Node & node, const std::array<std::string_view, 12> source_joint_names = default_source_joint_order_);
@@ -83,7 +84,7 @@ public:
    * @param callback The callback function should have the following arguments
    * (double time, Vector12d q_meas, Vector12d a_meas, Vector12d tau_meas)
    */
-  void register_callback(void (*callback)(double, Vector12d, Vector12d, Vector12d));
+  void register_callback(fnStateCb callback);
 
   /// @brief Is the robot initialized properly and ready to control.
   bool is_ready() const
@@ -191,7 +192,7 @@ private:
   volatile bool is_safe_;  ///< True if it is safe to publish commands.
 
   // Robot state callback
-  void (*state_cb_)(double, Vector12d, Vector12d, Vector12d); ///> User callback to receive state
+  fnStateCb m_pfnStateCb_; ///> User callback to receive state
   // Robot state async
   rclcpp::Time state_t_; ///< Time when last state was received.
   Vector12d state_q_;    ///< Joint positions (rad)
