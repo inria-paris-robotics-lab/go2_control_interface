@@ -198,6 +198,7 @@ private:
   Vector12d state_q_;    ///< Joint positions (rad)
   Vector12d state_dq_;   ///< Joint velocities (rad/s)
   Vector12d state_ddq_;  ///< Joint accelerations (rad/s²)
+  bool state_received_ = false;
 
   // Scaling factors
   double scaling_glob_; ///< Scaling factor applied on kp, kd, tau when sending commands

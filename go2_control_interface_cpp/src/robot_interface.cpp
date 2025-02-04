@@ -10,7 +10,7 @@
 Go2RobotInterface::Go2RobotInterface(rclcpp::Node & node, const std::array<std::string_view, 12> source_joint_order)
 : node_(node)
 , is_ready_(false)
-, is_safe_(false)
+, is_safe_(true)
 , m_pfnStateCb_(nullptr)
 , state_t_(0)
 , idx_source_in_target_(map_indices(source_joint_order, target_joint_order_))
@@ -147,8 +147,15 @@ void Go2RobotInterface::go_to_configuration(const Vector12d & q_des, double dura
     throw std::runtime_error("Duration must be strictly positive!");
   }
 
-  // Sleep for a second to allow the robot to stabilize
-  rclcpp::sleep_for(std::chrono::seconds(1));
+  // Sleep while first state is not received
+  size_t i;
+  for (i = 0; i < 5; i++) {
+    if (state_received_)
+      break;
+    rclcpp::sleep_for(std::chrono::seconds(1));
+  }
+  if (i == 5) 
+    throw std::runtime_error("Robot state not received in time for initialization of interface.");
 
   // Set up rate limiter to control the robot
   rclcpp::Rate rate(500); // Hz
@@ -162,7 +169,7 @@ void Go2RobotInterface::go_to_configuration(const Vector12d & q_des, double dura
   {
     // Compute the interpolation factor
     const rclcpp::Duration delta_time = node_.now() - start_time;
-    double alpha = delta_time.seconds() / duration_s;
+    double alpha = delta_time.nanoseconds() / (duration_s * 1e9);
 
     // Check if the interpolation is complete
     if (alpha >= 1.5)
@@ -198,6 +205,7 @@ void Go2RobotInterface::go_to_configuration(const Vector12d & q_des, double dura
 void Go2RobotInterface::consume_state(const unitree_go::msg::LowState::SharedPtr msg)
 {
   const rclcpp::Time t = node_.now();
+  state_received_ = true;
 
   // Copy and re-order motor state
   Vector12d q_meas, dq_meas, ddq_meas;
