@@ -188,8 +188,9 @@ private:
   rclcpp::Node & node_;
 
   // Safety flags
-  volatile bool is_ready_; ///< True if the robot has been successfully initialised.
-  volatile bool is_safe_;  ///< True if it is safe to publish commands.
+  volatile bool is_ready_;       ///< True if the robot has been successfully initialised.
+  volatile bool is_safe_;        ///< True if it is safe to publish commands.
+  volatile bool state_received_; ///< True after at least one joint state received
 
   // Robot state callback
   fnStateCb m_pfnStateCb_; ///> User callback to receive state
@@ -198,7 +199,6 @@ private:
   Vector12d state_q_;    ///< Joint positions (rad)
   Vector12d state_dq_;   ///< Joint velocities (rad/s)
   Vector12d state_ddq_;  ///< Joint accelerations (rad/s²)
-  bool state_received_ = false;
 
   // Scaling factors
   double scaling_glob_; ///< Scaling factor applied on kp, kd, tau when sending commands

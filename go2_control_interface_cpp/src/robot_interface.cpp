@@ -10,7 +10,8 @@
 Go2RobotInterface::Go2RobotInterface(rclcpp::Node & node, const std::array<std::string_view, 12> source_joint_order)
 : node_(node)
 , is_ready_(false)
-, is_safe_(true)
+, is_safe_(false)
+, state_received_(false)
 , m_pfnStateCb_(nullptr)
 , state_t_(0)
 , idx_source_in_target_(map_indices(source_joint_order, target_joint_order_))
@@ -148,14 +149,14 @@ void Go2RobotInterface::go_to_configuration(const Vector12d & q_des, double dura
   }
 
   // Sleep while first state is not received
-  size_t i;
-  for (i = 0; i < 5; i++) {
-    if (state_received_)
-      break;
-    rclcpp::sleep_for(std::chrono::seconds(1));
+  int i = 0;
+  while (!is_safe_ || !state_received_)
+  {
+    if (i == 500)
+      throw std::runtime_error(
+        "Robot state not received or watchdog not safe in time for initialization of interface.");
+    rclcpp::sleep_for(std::chrono::milliseconds(100));
   }
-  if (i == 5) 
-    throw std::runtime_error("Robot state not received in time for initialization of interface.");
 
   // Set up rate limiter to control the robot
   rclcpp::Rate rate(500); // Hz
