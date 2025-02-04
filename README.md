@@ -74,7 +74,6 @@ mamba activate go2_control_interface
 source install/setup.bash
 source <(ros2 run go2_control_interface autoset_environment_dds)
 ```
-
 ##### In simulation (using go2_simulation)
 ```bash
 mamba activate go2_control_interface
@@ -84,6 +83,25 @@ export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
 export ROS_LOCALHOST_ONLY=1
 ```
 * Replace `---absolute path to cyclonedds workspace---`
+
+##### GO2 topics not appearing on local machine:
+Your firewall might block communication between your machine and the go2 (topics such as `/lowstate`,`/api/...` will not appear), in that case deactivate your firewall with :
+```bash
+sudo ufx deactivate
+``` 
+and retry `ros2 topic list`. If they appear now you will need to update permissions in your firewall :
+```bash
+sudo ufw enable # reactivate the firewall
+sudo ufw allow in proto udp from 192.168.123.222 # allow UDP messages from go2 IP
+sudo ufw allow in proto udp to 192.168.123.222 # allow UDP messages to go2 IP
+```
+You can check permissions with `sudo ufw status verbose`. You should have:
+```bash
+Vers                       Action      De
+----                       ------      --            
+Anywhere                   ALLOW IN    192.168.123.222/udp       
+192.168.123.222/udp        ALLOW IN    Anywhere                  
+```
 
 #### 1. Shutdown unitree default control
 When powered on, the go2 have some default unitree controllers running, to make it stand up and walk. It needs to but shutdown as it is constantly spamming the motor with its commands.
@@ -144,3 +162,4 @@ def main(args=None):
 if __name__ == '__main__':
     main()
 ```
+
