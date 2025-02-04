@@ -171,12 +171,6 @@ void Go2RobotInterface::go_to_configuration(const Vector12d & q_des, double dura
     const rclcpp::Duration delta_time = node_.now() - start_time;
     double alpha = delta_time.nanoseconds() / (duration_s * 1e9);
 
-    // Check if the interpolation is complete
-    if (alpha >= 1.5)
-    {
-      break;
-    }
-
     // Clip alpha to max 1.
     alpha = alpha > 1.0 ? 1.0 : alpha;
 
@@ -188,6 +182,12 @@ void Go2RobotInterface::go_to_configuration(const Vector12d & q_des, double dura
 
     // Sleep for a while
     rate.sleep();
+
+    // Check if the interpolation is complete
+    if (alpha >= 1.)
+    {
+      break;
+    }
   }
 
   // Check if the interpolation is complete by looking at difference
