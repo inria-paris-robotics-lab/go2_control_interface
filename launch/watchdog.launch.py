@@ -22,7 +22,7 @@ def generate_launch_description():
         ignore_joint_limits_arg,
         Node(
             package='go2_control_interface',
-            executable='watchdog.py',
+            executable='watchdog_node.py',
             name='watchdog',
             output='screen',
             parameters=[watchdog_config_filepath, {"ignore_joint_limits": LaunchConfiguration("ignore_joint_limits")}],
