@@ -5,7 +5,7 @@ repositories:
     version: releases/0.10.x
   go2_simulation:
     type: git
-    url: git@github.com:inria-paris-robotics-lab/unitree-go2-simulator.git
+    url: git@github.com:inria-paris-robotics-lab/go2_simulation.git
     version: master
   rmw_cyclonedds:
     type: git
