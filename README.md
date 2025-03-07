@@ -72,23 +72,21 @@ Your network interface where the robot is plugged need to be set in "manual IPV4
 ```bash
 mamba activate go2_control_interface
 source install/setup.bash
-source <(ros2 run go2_control_interface autoset_environment_dds.py)
+source <(ros2 run go2_control_interface autoset_environment_dds.py REAL)
 ```
 ##### In simulation (using go2_simulation)
 ```bash
 mamba activate go2_control_interface
 source install/setup.bash
-export CYCLONEDDS_HOME="---absolute path to cyclonedds workspace---/install/cyclonedds"
-export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
-export ROS_LOCALHOST_ONLY=1
+source <(ros2 run go2_control_interface autoset_environment_dds.py SIMULATION)
 ```
 * Replace `---absolute path to cyclonedds workspace---`
 
 ##### GO2 topics not appearing on local machine:
 Your firewall might block communication between your machine and the go2 (topics such as `/lowstate`,`/api/...` will not appear), in that case deactivate your firewall with :
 ```bash
-sudo ufx deactivate
-``` 
+sudo ufw disable
+```
 and retry `ros2 topic list`. If they appear now you will need to update permissions in your firewall :
 ```bash
 sudo ufw enable # reactivate the firewall
@@ -98,9 +96,9 @@ sudo ufw allow in proto udp to 192.168.123.222 # allow UDP messages to go2 IP
 You can check permissions with `sudo ufw status verbose`. You should have:
 ```bash
 Vers                       Action      De
-----                       ------      --            
-Anywhere                   ALLOW IN    192.168.123.222/udp       
-192.168.123.222/udp        ALLOW IN    Anywhere                  
+----                       ------      --
+Anywhere                   ALLOW IN    192.168.123.222/udp
+192.168.123.222/udp        ALLOW IN    Anywhere
 ```
 
 #### 1. Shutdown unitree default control
@@ -124,7 +122,7 @@ Here is the boilerplate/example code to write your app
 ```python
 import rclpy
 from rclpy.node import Node
-from go2_control_interface.robot_interface import Go2RobotInterface
+from go2_control_interface_py.robot_interface import Go2RobotInterface
 
 class MyApp(Node, ):
     def __init__(self):
@@ -148,7 +146,7 @@ class MyApp(Node, ):
         kd      = [0.] * 12
         if self.robot_if.is_ready:
             self.robot_if.send_command(q_des, v_des, tau_des, kp, kd)
-        pass
+
 
 def main(args=None):
     rclpy.init(args=args)
@@ -162,4 +160,3 @@ def main(args=None):
 if __name__ == '__main__':
     main()
 ```
-
