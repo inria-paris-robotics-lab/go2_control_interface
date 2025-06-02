@@ -1,4 +1,4 @@
-Go2 MPC Experiments
+Go2 Control Interface
 ===
 
 ## Summary
