@@ -4,6 +4,7 @@ channels:
 - robostack-staging
 dependencies:
 - boost[version='>=1.82']
+- pinocchio
 - bullet
 - ccache
 - cmake
