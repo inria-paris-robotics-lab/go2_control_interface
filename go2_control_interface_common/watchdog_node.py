@@ -32,7 +32,7 @@ class WatchDogNode(Node, Go2RobotInterface):
 
         # Watchdog timer parameters
         self.freq = self.declare_parameter("freq", 100).value
-        self.n_fail = self.declare_parameter("n_fail", 2000).value
+        self.n_fail = self.declare_parameter("n_fail", 2).value
         self.ignore_joint_limits = self.node.declare_parameter("ignore_joint_limits", False).value
 
         # Safety values
