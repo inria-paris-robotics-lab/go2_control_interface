@@ -123,6 +123,7 @@ void Go2RobotInterface::start_aux(const Vector12d & q_start, bool goto_config)
   RCLCPP_INFO(node_.get_logger(), "Waiting for watchdog to be armed...");
   while (!this->is_safe_ && rclcpp::ok())
   {
+    watchdog_publisher_->publish(msg);
     rclcpp::sleep_for(std::chrono::milliseconds(100));
   }
 
