@@ -1,7 +1,7 @@
 import rclpy
 from rclpy.node import Node
 from rclpy.duration import Duration
-from rclpy.time import Time
+from rcl_interfaces.msg import ParameterDescriptor
 
 from typing import List, Callable
 from unitree_go.msg import LowCmd, LowState
@@ -35,7 +35,8 @@ class Go2RobotInterface():
         self.scaling_ff = self.node.declare_parameter("scaling_ff", 1.0).value
 
         self.last_state_tqva = None
-        self.filter_fq = self.node.declare_parameter("joint_filter_fq", -1.0).value # By default no filter
+        self.filter_fq = self.node.declare_parameter("joints_filter_fq", -1.0, ParameterDescriptor(description="Characteristic frequency of the filters on q, dq, ddq")).value # By default no filter
+        self.robot_fq = self.node.declare_parameter("robot_fq", 500., ParameterDescriptor(description="Frequency at which the robot state messages are published")).value # 500Hz for the Go2
 
         self.crc = CRC()
         self.user_cb = None
@@ -144,11 +145,12 @@ class Go2RobotInterface():
         else:
             t_prev, q_prev, v_prev, a_prev = last_tqva
 
-            b = 1. / (1 + 2 * 3.14 * (t - t_prev) * self.filter_fq)
+            # Filtered derivative (https://fr.mathworks.com/help/sps/ref/filteredderivativediscreteorcontinuous.html#d126e104759)
+            a_filter = [self.filter_fq_ * (v_urdf[i] - v_prev[i]) for i in range(12)] # Do that operation first to have the previous v
 
-            q_filter = [(1-b) * q_urdf[i] + b * q_prev[i] for i in range(12)]
-            v_filter = [(1-b) * v_urdf[i] + b * v_prev[i] for i in range(12)]
-            a_filter = [(1-b) * a_urdf[i] + b * a_prev[i] for i in range(12)]
+            alpha = self.filter_fq / self.robot_fq
+            q_filter = [(1-alpha) * q_prev[i] + alpha * q_urdf[i] for i in range(12)]
+            v_filter = [(1-alpha) * v_prev[i] + alpha * v_urdf[i] for i in range(12)]
 
             self.last_state_tqva = t, q_filter, v_filter, a_filter
 
