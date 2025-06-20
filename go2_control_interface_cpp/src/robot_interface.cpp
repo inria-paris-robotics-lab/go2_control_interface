@@ -223,9 +223,10 @@ void Go2RobotInterface::consume_state(const unitree_go::msg::LowState::SharedPtr
   if (this->state_t_.nanoseconds() == 0 || this->filter_fq_ <= 0.)
   {
     // No filtering to do on first point
-    state_q_ = q_meas;
+    state_ddq_ = this->robot_fq_ * (dq_meas - state_dq_); // Do that operation first to have the previous dq
+
     state_dq_ = dq_meas;
-    state_ddq_ = ddq_meas;
+    state_q_ = q_meas;
   }
   else
   {

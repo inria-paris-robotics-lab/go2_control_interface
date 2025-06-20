@@ -141,10 +141,12 @@ class Go2RobotInterface():
         last_tqva = self.last_state_tqva
         if last_tqva is None or self.filter_fq <= 0.:
             # No filtering to do on first point
-            self.last_state_tqva = t, q_urdf, v_urdf, a_urdf
+            v_prev = last_tqva[2] if last_tqva is not None else [0.]*12
+            a_finite_diff = [self.robot_fq * (v_urdf[i] - v_prev[i]) for i in range(12)] # Do that operation first to have the previous v
+
+            self.last_state_tqva = t, q_urdf, v_urdf, a_finite_diff
         else:
             t_prev, q_prev, v_prev, a_prev = last_tqva
-
             # Filtered derivative (https://fr.mathworks.com/help/sps/ref/filteredderivativediscreteorcontinuous.html#d126e104759)
             a_filter = [self.filter_fq_ * (v_urdf[i] - v_prev[i]) for i in range(12)] # Do that operation first to have the previous v
 
