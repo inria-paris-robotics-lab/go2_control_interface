@@ -2,6 +2,7 @@
 #include "go2_control_interface_cpp/motor_crc.hpp"
 
 #include "rclcpp/rclcpp.hpp"
+#include "rclcpp/logging.hpp"
 #include "std_msgs/msg/bool.hpp"
 #include "unitree_go/msg/low_cmd.hpp"
 #include "unitree_go/msg/low_state.hpp"
@@ -27,6 +28,12 @@ Go2RobotInterface::Go2RobotInterface(rclcpp::Node & node, const std::array<std::
 
   filter_fq_ = node.declare_parameter("joints_filter_fq", -1.0); // By default no filter
   robot_fq_ = node.declare_parameter("robot_fq", 500.); // For the current Go2 robot
+
+  if(filter_fq_ > robot_fq_)
+  {
+    RCLCPP_WARN(node.get_logger(), "Joint filter freq higher than robot sampling freq. Disabling filter. %f > %f", filter_fq_, robot_fq_);
+    filter_fq_ = -1.0;
+  }
 
   // Subscribe to the /lowstate and /watchdog/is_safe topics
   state_subscription_ = node_.create_subscription<unitree_go::msg::LowState>(
@@ -233,7 +240,7 @@ void Go2RobotInterface::consume_state(const unitree_go::msg::LowState::SharedPtr
     // Filtered derivative (https://fr.mathworks.com/help/sps/ref/filteredderivativediscreteorcontinuous.html#d126e104759)
     state_ddq_ = this->filter_fq_ * (dq_meas - state_dq_); // Do that operation first to have the previous dq
 
-    const double  a = this->filter_fq_ / this->robot_fq_;
+    const double a = this->filter_fq_ / this->robot_fq_;
     state_dq_ = (1-a) * state_dq_ + a * dq_meas;
     state_q_ = (1-a) * state_q_ + a * q_meas;
   }

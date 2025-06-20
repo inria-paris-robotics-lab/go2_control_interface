@@ -38,6 +38,10 @@ class Go2RobotInterface():
         self.filter_fq = self.node.declare_parameter("joints_filter_fq", -1.0, ParameterDescriptor(description="Characteristic frequency of the filters on q, dq, ddq")).value # By default no filter
         self.robot_fq = self.node.declare_parameter("robot_fq", 500., ParameterDescriptor(description="Frequency at which the robot state messages are published")).value # 500Hz for the Go2
 
+        if self.filter_fq > self.robot_fq:
+            node.get_logger().warn("Joint filter freq higher than robot sampling freq. Disabling filter. %f > %f" % (self.filter_fq, self.robot_fq))
+            self.filter_fq = -1.0
+
         self.crc = CRC()
         self.user_cb = None
         # TODO: Add a callback to joint_states and verify that robots is within safety bounds
