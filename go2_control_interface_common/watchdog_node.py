@@ -33,7 +33,6 @@ class WatchDogNode(Node, Go2RobotInterface):
         # Watchdog timer parameters
         self.freq = self.declare_parameter("freq", 100).value
         self.n_fail = self.declare_parameter("n_fail", 2).value
-        self.ignore_joint_limits = self.node.declare_parameter("ignore_joint_limits", False).value
 
         # Safety values
         self.q_max = self.declare_parameter("q_max", rclpy.Parameter.Type.DOUBLE_ARRAY).value
@@ -53,8 +52,7 @@ class WatchDogNode(Node, Go2RobotInterface):
         self.start_subscription =  self.create_subscription(Bool, "/watchdog/arm", self.__arm_disarm_cb, 10)
         self.timer = self.create_timer(1./self.freq, self.timer_callback)
 
-        if(not self.ignore_joint_limits):
-            self.register_callback(self.__state_cb)
+        self.register_callback(self.__state_cb)
 
         self._is_safe_publisher =  self.create_publisher(Bool, "/watchdog/is_safe", QoSProfile(depth=10, durability=QoSDurabilityPolicy.TRANSIENT_LOCAL))
 
