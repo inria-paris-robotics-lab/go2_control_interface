@@ -79,18 +79,9 @@ class WatchDogNode(Node, Go2RobotInterface):
         q_min_bound = [q_i + dt_i * dq_i < q_min_i for q_i, dq_i, dt_i, q_min_i in zip(q, dq, self.margin_duration, self.q_min)]
 
         if any(q_max_bound):
-            stop = self._stop_robot(f"Watch-dog detect joint {[i for i, b in enumerate(q_max_bound) if b]} out of bounds. (max q, dq)")
-            if stop:
-                for i, bound in enumerate(q_max_bound):
-                    if bound:
-                        self.get_logger().error(f"q[{i}] + dt[{i}] * dq[{i}] = {q[i]} + {self.margin_duration[i]} * {dq[i]} = {q[i]+self.margin_duration[i]*dq[i]} > {self.q_max[i]} = max_q_i")
+            self._stop_robot(f"Watch-dog detect joint {[i for i, b in enumerate(q_max_bound) if b]} out of bounds. (max q, dq)")
         if any(q_min_bound):
-            stop = self._stop_robot(f"Watch-dog detect joint {[i for i, b in enumerate(q_min_bound) if b]} out of bounds. (min q, dq)")
-            if stop:
-                for i, bound in enumerate(q_max_bound):
-                    if bound:
-                        self.get_logger().error(f"q[{i}] + dt[{i}] * dq[{i}] = {q[i]} + {self.margin_duration[i]} * {dq[i]} = {q[i]+self.margin_duration[i]*dq[i]} < {self.q_max[i]} = min_q_i")
-
+            self._stop_robot(f"Watch-dog detect joint {[i for i, b in enumerate(q_min_bound) if b]} out of bounds. (min q, dq)")
         # TODO: Add check on tau (look at cmd ??)
 
     def timer_callback(self):
@@ -123,12 +114,10 @@ class WatchDogNode(Node, Go2RobotInterface):
 
     def _stop_robot(self, msg_str):
         self._send_kill_cmd() # ASAP
-        first_stop = not self.is_stopped
-        if first_stop:
+        if not self.is_stopped:
             self.get_logger().error(msg_str + " Stopping robot.")
         self.is_stopped = True
         self.is_waiting = False
-        return first_stop # Return True if this call actually stopped the robot
 
     def _send_kill_cmd(self):
         self._send_command([0.]*12, [0.]*12, [0.]*12, [0.]*12, [1.]*12, scaling = False)
