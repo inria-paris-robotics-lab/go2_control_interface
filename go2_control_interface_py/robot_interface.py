@@ -152,7 +152,7 @@ class Go2RobotInterface():
         else:
             t_prev, q_prev, v_prev, a_prev = last_tqva
             # Filtered derivative (https://fr.mathworks.com/help/sps/ref/filteredderivativediscreteorcontinuous.html#d126e104759)
-            a_filter = [self.filter_fq_ * (v_urdf[i] - v_prev[i]) for i in range(12)] # Do that operation first to have the previous v
+            a_filter = [self.filter_fq * (v_urdf[i] - v_prev[i]) for i in range(12)] # Do that operation first to have the previous v
 
             alpha = self.filter_fq / self.robot_fq
             q_filter = [(1-alpha) * q_prev[i] + alpha * q_urdf[i] for i in range(12)]
