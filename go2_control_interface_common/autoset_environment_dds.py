@@ -10,7 +10,7 @@ class Go2EnvSetup():
         ifname, ifip = go2_net_info.getGo2InterfaceNameIp()
 
         self.output (f'\033[1;4mExecuting:\033[0m', display_only=True)
-
+        self.output (f'export RCUTILS_COLORIZED_OUTPUT=1')
         if(sim):
             self.output (f'unset RMW_IMPLEMENTATION')
             self.output (f'unset CYCLONEDDS_URI')
