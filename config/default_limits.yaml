@@ -10,8 +10,8 @@ watchdog:
              -0.86, -0.523, -2.84,
              -0.86, -0.523, -2.84]
         # Extracted from go2_description urdf
-    margin_duration: [0.06, 0.06, 0.06,
-                      0.06, 0.06, 0.06,
-                      0.06, 0.06, 0.06,
-                      0.06, 0.06, 0.06]
+    margin_duration: [0.06, 0.06, 0.04,
+                      0.06, 0.06, 0.04,
+                      0.06, 0.06, 0.04,
+                      0.06, 0.06, 0.04]
         # See https://github.com/inria-paris-robotics-lab/go2_control_interface/issues/11#issuecomment-2995477021
