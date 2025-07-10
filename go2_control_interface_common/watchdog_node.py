@@ -43,7 +43,8 @@ class WatchDogNode(Node, Go2RobotInterface):
         assert len(self.margin_duration) == 12, "Parameter margin_duration should be length 12"
         assert all(d >= 0. for d in self.margin_duration), "Parameter margin_duration should be non negative"
 
-        self.filter_fq = 100
+        # Use RobotInterface variable to filter dq
+        self.filter_fq = 200
 
         # Watchdog timer logic
         self.cnt = 0
