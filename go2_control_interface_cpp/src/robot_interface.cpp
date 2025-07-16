@@ -1,8 +1,8 @@
 #include "go2_control_interface_cpp/robot_interface.hpp"
 #include "go2_control_interface_cpp/motor_crc.hpp"
 
-#include "rclcpp/rclcpp.hpp"
 #include "rclcpp/logging.hpp"
+#include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/bool.hpp"
 #include "unitree_go/msg/low_cmd.hpp"
 #include "unitree_go/msg/low_state.hpp"
@@ -27,12 +27,24 @@ Go2RobotInterface::Go2RobotInterface(rclcpp::Node & node, const std::array<std::
   scaling_ff_ = node.declare_parameter("scaling_ff", 1.0);
 
   filter_fq_ = node.declare_parameter("joints_filter_fq", -1.0); // By default no filter
-  robot_fq_ = node.declare_parameter("robot_fq", 500.); // For the current Go2 robot
+  robot_fq_ = node.declare_parameter("robot_fq", 500.);          // For the current Go2 robot
 
-  if(filter_fq_ > robot_fq_)
+  if (filter_fq_ > robot_fq_)
   {
-    RCLCPP_WARN(node.get_logger(), "Joint filter freq higher than robot sampling freq. Disabling filter. %f > %f", filter_fq_, robot_fq_);
-    filter_fq_ = -1.0;
+    RCLCPP_ERROR(
+      node.get_logger(),
+      "Go2RobotInterface: Joint filter freq higher than robot sampling freq, stopping node ! %f > %f", filter_fq_,
+      robot_fq_);
+    throw std::runtime_error("Go2RobotInterface: Joint filter freq higher than robot sampling freq, stopping node !");
+  }
+
+  if (filter_fq_ > 0)
+  {
+    RCLCPP_INFO(node.get_logger(), "Go2RobotInterface: Joint filter frequency set to %f Hz.", filter_fq_);
+  }
+  else
+  {
+    RCLCPP_INFO(node.get_logger(), "Go2RobotInterface: Joint filtering disabled.");
   }
 
   // Subscribe to the /lowstate and /watchdog/is_safe topics
@@ -127,7 +139,7 @@ void Go2RobotInterface::start_aux(const Vector12d & q_start, bool goto_config)
   msg.data = true;
   watchdog_publisher_->publish(msg);
 
-  RCLCPP_INFO(node_.get_logger(), "Waiting for watchdog to be armed...");
+  RCLCPP_INFO(node_.get_logger(), "Go2RobotInterface: Waiting for watchdog to be armed...");
   while (!this->is_safe_ && rclcpp::ok())
   {
     watchdog_publisher_->publish(msg);
@@ -136,13 +148,13 @@ void Go2RobotInterface::start_aux(const Vector12d & q_start, bool goto_config)
 
   if (goto_config)
   {
-    RCLCPP_INFO(node_.get_logger(), "Going to start configuration...");
+    RCLCPP_INFO(node_.get_logger(), "Go2RobotInterface: Going to start configuration...");
     go_to_configuration(q_start, 5.0);
-    RCLCPP_INFO(node_.get_logger(), "Start configuration reached.");
+    RCLCPP_INFO(node_.get_logger(), "Go2RobotInterface: Start configuration reached.");
   }
   else
   {
-    RCLCPP_INFO(node_.get_logger(), "Skipping start configuration, set command to zero");
+    RCLCPP_INFO(node_.get_logger(), "Go2RobotInterface: Skipping start configuration, set command to zero");
     send_command_aux(Vector12d::Zero(), Vector12d::Zero(), Vector12d::Zero(), Vector12d::Zero(), Vector12d::Zero());
   }
   this->is_ready_ = true;
@@ -237,12 +249,13 @@ void Go2RobotInterface::consume_state(const unitree_go::msg::LowState::SharedPtr
   }
   else
   {
-    // Filtered derivative (https://fr.mathworks.com/help/sps/ref/filteredderivativediscreteorcontinuous.html#d126e104759)
+    // Filtered derivative
+    // (https://fr.mathworks.com/help/sps/ref/filteredderivativediscreteorcontinuous.html#d126e104759)
     state_ddq_ = this->filter_fq_ * (dq_meas - state_dq_); // Do that operation first to have the previous dq
 
     const double a = this->filter_fq_ / this->robot_fq_;
-    state_dq_ = (1-a) * state_dq_ + a * dq_meas;
-    state_q_ = (1-a) * state_q_ + a * q_meas;
+    state_dq_ = (1 - a) * state_dq_ + a * dq_meas;
+    state_q_ = (1 - a) * state_q_ + a * q_meas;
   }
 
   this->state_t_ = t;
