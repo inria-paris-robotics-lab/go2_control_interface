@@ -18,7 +18,7 @@ class Go2RobotInterface():
             6,  7,  8,
         ] # re-ordering joints
 
-    def __init__(self, node: Node):
+    def __init__(self, node: Node, *, joints_filter_fq_default=-1.0):
         self.is_ready = False
         self.is_safe = False
 
@@ -35,7 +35,7 @@ class Go2RobotInterface():
         self.scaling_ff = self.node.declare_parameter("scaling_ff", 1.0).value
 
         self.last_state_tqva = None
-        self.filter_fq = self.node.declare_parameter("joints_filter_fq", -1.0, ParameterDescriptor(description="Characteristic frequency of the filters on q, dq, ddq")).value # By default no filter
+        self.filter_fq = self.node.declare_parameter("joints_filter_fq", joints_filter_fq_default, ParameterDescriptor(description="Characteristic frequency of the filters on q, dq, ddq")).value # By default no filter
         self.robot_fq = self.node.declare_parameter("robot_fq", 500., ParameterDescriptor(description="Frequency at which the robot state messages are published")).value # 500Hz for the Go2
 
         if self.filter_fq > self.robot_fq:
