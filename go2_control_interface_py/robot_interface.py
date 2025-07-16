@@ -39,8 +39,13 @@ class Go2RobotInterface():
         self.robot_fq = self.node.declare_parameter("robot_fq", 500., ParameterDescriptor(description="Frequency at which the robot state messages are published")).value # 500Hz for the Go2
 
         if self.filter_fq > self.robot_fq:
-            node.get_logger().warn("Joint filter freq higher than robot sampling freq. Disabling filter. %f > %f" % (self.filter_fq, self.robot_fq))
-            self.filter_fq = -1.0
+            node.get_logger().error("Go2RobotInterface: Joint filter freq higher than robot sampling freq, stopping node ! %f > %f" % (self.filter_fq, self.robot_fq))
+            assert False, "Go2RobotInterface: Joint filter freq higher than robot sampling freq, stopping node !"
+
+        if self.filter_fq > 0:
+            node.get_logger().info("Go2RobotInterface: Joint filter frequency set to %f Hz." % self.filter_fq);
+        else:
+            node.get_logger().info("Go2RobotInterface: Joint filtering disabled.");
 
         self.crc = CRC()
         self.user_cb = None
@@ -59,16 +64,16 @@ class Go2RobotInterface():
         arm_watchdog_msg.data = True
         self._watchdog_publisher.publish(arm_watchdog_msg)
 
-        self.node.get_logger().info("Waiting for watchdog to be armed...")
+        self.node.get_logger().info("Go2RobotInterface: Waiting for watchdog to be armed...")
         while(not self.is_safe and rclpy.ok()):
             self.node.get_clock().sleep_for(Duration(seconds=.1))
 
         if(goto_config):
-            self.node.get_logger().info("Going to start configuration...")
+            self.node.get_logger().info("Go2RobotInterface: Going to start configuration...")
             self._go_to_configuration__(q_start, 5.0)
-            self.node.get_logger().info("Start configuration reached.")
+            self.node.get_logger().info("Go2RobotInterface: Start configuration reached.")
         else:
-            self.node.get_logger().info("Skipping start configuration, set command to zero")
+            self.node.get_logger().info("Go2RobotInterface: Skipping start configuration, set command to zero")
             zeros = [0.] * 12
             self._send_command(zeros, zeros, zeros, zeros, zeros, 0.0)
         self.is_ready = True
