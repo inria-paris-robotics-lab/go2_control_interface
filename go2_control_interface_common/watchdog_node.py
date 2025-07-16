@@ -28,7 +28,7 @@ class WatchDogNode(Node, Go2RobotInterface):
     """
     def __init__(self):
         Node.__init__(self, "watchdog")
-        Go2RobotInterface.__init__(self, self)
+        Go2RobotInterface.__init__(self, self, joints_filter_fq_default = 200)
 
         # Watchdog timer parameters
         self.freq = self.declare_parameter("freq", 100).value
@@ -42,9 +42,6 @@ class WatchDogNode(Node, Go2RobotInterface):
         assert len(self.q_min) == 12, "Parameter q_min should be length 12"
         assert len(self.margin_duration) == 12, "Parameter margin_duration should be length 12"
         assert all(d >= 0. for d in self.margin_duration), "Parameter margin_duration should be non negative"
-
-        # Use RobotInterface variable to filter dq
-        self.filter_fq = 200
 
         # Watchdog timer logic
         self.cnt = 0
