@@ -7,6 +7,7 @@ from unitree_go.msg import LowCmd
 from std_msgs.msg import Bool
 from rclpy.qos import QoSProfile, QoSDurabilityPolicy
 
+
 class WatchDogNode(Node, Go2RobotInterface):
     """
     The watchdog has 3 states :
@@ -26,9 +27,10 @@ class WatchDogNode(Node, Go2RobotInterface):
     A or B -> is_safe set to True, no command sent to the robot
     C -> is_safe set to False, damping commands spammed to the robot
     """
+
     def __init__(self):
         Node.__init__(self, "watchdog")
-        Go2RobotInterface.__init__(self, self, joints_filter_fq_default = 200)
+        Go2RobotInterface.__init__(self, self, joints_filter_fq_default=200)
 
         # Watchdog timer parameters
         self.freq = self.declare_parameter("freq", 100).value
@@ -41,21 +43,22 @@ class WatchDogNode(Node, Go2RobotInterface):
         assert len(self.q_max) == 12, "Parameter q_max should be length 12"
         assert len(self.q_min) == 12, "Parameter q_min should be length 12"
         assert len(self.margin_duration) == 12, "Parameter margin_duration should be length 12"
-        assert all(d >= 0. for d in self.margin_duration), "Parameter margin_duration should be non negative"
+        assert all(d >= 0.0 for d in self.margin_duration), "Parameter margin_duration should be non negative"
 
         # Watchdog timer logic
         self.cnt = 0
         self.is_stopped = False
         self.is_waiting = False
 
-        self.lowcmd_subscription =  self.create_subscription(LowCmd, "/lowcmd", self.__cmd_cb, 10)
-        self.start_subscription =  self.create_subscription(Bool, "/watchdog/arm", self.__arm_disarm_cb, 10)
-        self.timer = self.create_timer(1./self.freq, self.timer_callback)
+        self.lowcmd_subscription = self.create_subscription(LowCmd, "/lowcmd", self.__cmd_cb, 10)
+        self.start_subscription = self.create_subscription(Bool, "/watchdog/arm", self.__arm_disarm_cb, 10)
+        self.timer = self.create_timer(1.0 / self.freq, self.timer_callback)
 
         self.register_callback(self.__state_cb)
 
-        self._is_safe_publisher =  self.create_publisher(Bool, "/watchdog/is_safe", QoSProfile(depth=10, durability=QoSDurabilityPolicy.TRANSIENT_LOCAL))
-
+        self._is_safe_publisher = self.create_publisher(
+            Bool, "/watchdog/is_safe", QoSProfile(depth=10, durability=QoSDurabilityPolicy.TRANSIENT_LOCAL)
+        )
 
     def __arm_disarm_cb(self, msg):
         # Acting as an e-stop
@@ -69,17 +72,25 @@ class WatchDogNode(Node, Go2RobotInterface):
             self.get_logger().warning("First command received on /lowcmd, watchdog running")
 
         self.is_waiting = False
-        self.cnt = 0 # Reset timeout
+        self.cnt = 0  # Reset timeout
 
     def __state_cb(self, t, q, dq, ddq):
         # Joint bounds
-        q_max_bound = [q_i + dt_i * dq_i > q_max_i for q_i, dq_i, dt_i, q_max_i in zip(q, dq, self.margin_duration, self.q_max)]
-        q_min_bound = [q_i + dt_i * dq_i < q_min_i for q_i, dq_i, dt_i, q_min_i in zip(q, dq, self.margin_duration, self.q_min)]
+        q_max_bound = [
+            q_i + dt_i * dq_i > q_max_i for q_i, dq_i, dt_i, q_max_i in zip(q, dq, self.margin_duration, self.q_max)
+        ]
+        q_min_bound = [
+            q_i + dt_i * dq_i < q_min_i for q_i, dq_i, dt_i, q_min_i in zip(q, dq, self.margin_duration, self.q_min)
+        ]
 
         if any(q_max_bound):
-            self._stop_robot(f"Watch-dog detect joint {[i for i, b in enumerate(q_max_bound) if b]} out of bounds. (max q, dq)")
+            self._stop_robot(
+                f"Watch-dog detect joint {[i for i, b in enumerate(q_max_bound) if b]} out of bounds. (max q, dq)"
+            )
         if any(q_min_bound):
-            self._stop_robot(f"Watch-dog detect joint {[i for i, b in enumerate(q_min_bound) if b]} out of bounds. (min q, dq)")
+            self._stop_robot(
+                f"Watch-dog detect joint {[i for i, b in enumerate(q_min_bound) if b]} out of bounds. (min q, dq)"
+            )
         # TODO: Add check on tau (look at cmd ??)
 
     def timer_callback(self):
@@ -97,7 +108,6 @@ class WatchDogNode(Node, Go2RobotInterface):
         if self.cnt >= self.n_fail:
             self._stop_robot("Watch-dog timer reached.")
 
-
     def _arm_watchdog(self):
         # Arming the watchdog
         self.cnt = 0
@@ -111,18 +121,19 @@ class WatchDogNode(Node, Go2RobotInterface):
         self._is_safe_publisher.publish(is_safe_msg)
 
     def _stop_robot(self, msg_str):
-        self._send_kill_cmd() # ASAP
+        self._send_kill_cmd()  # ASAP
         if not self.is_stopped:
             self.get_logger().error(msg_str + " Stopping robot.")
         self.is_stopped = True
         self.is_waiting = False
 
     def _send_kill_cmd(self):
-        self._send_command([0.]*12, [0.]*12, [0.]*12, [0.]*12, [1.]*12, scaling = False)
+        self._send_command([0.0] * 12, [0.0] * 12, [0.0] * 12, [0.0] * 12, [1.0] * 12, scaling=False)
         # Send info to other nodes
         is_safe_msg = Bool()
         is_safe_msg.data = False
         self._is_safe_publisher.publish(is_safe_msg)
+
 
 def main(args=None):
     rclpy.init(args=args)
@@ -133,5 +144,6 @@ def main(args=None):
     watch_dog_node.destroy_node()
     rclpy.shutdown()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()
