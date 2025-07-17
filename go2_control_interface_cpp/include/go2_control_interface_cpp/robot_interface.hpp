@@ -206,7 +206,7 @@ private:
 
   // Parameter to filter the velocity (as it is quite noisy on the real go2 robot)
   double filter_fq_; ///< Cut-off frequency of the filter
-  double robot_fq_; ///< Robot frequency at which state is published (500Hz for the Go2)
+  double robot_fq_;  ///< Robot frequency at which state is published (500Hz for the Go2)
 
   // Messages
   unitree_go::msg::LowCmd cmd_; ///< Pointer to a pre-filled LowCmd message
