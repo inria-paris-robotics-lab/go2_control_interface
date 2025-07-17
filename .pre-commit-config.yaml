@@ -10,6 +10,12 @@ repos:
       types_or: []
       types: [text]
       files: '\.(cpp|cxx|c|h|hpp|hxx|txx)$'
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.12.1
+    hooks:
+      - id: ruff-check # Run the linter.
+        args: [ --fix ]
+      - id: ruff-format # Run the formatter.
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
