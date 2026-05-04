@@ -58,5 +58,22 @@ watchdog:
       -1.614429558,
       -1.614429558
       ]
-    margin_duration: [0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03]
+    # Watchdog predicts: q + dq * margin_duration > q_max => stop
+    # Larger margin = predicts further ahead = stricter
+    # Smaller margin = predicts closer = more permissive
+    #
+    # Kinematic chains and margin values:
+    #
+    #   Left leg:  hip_pitch(0) > hip_roll(1) > hip_yaw(2) > knee(3) > ankle_pitch(4)* > ankle_roll(5)*
+    #   Right leg: hip_pitch(6) > hip_roll(7) > hip_yaw(8) > knee(9) > ankle_pitch(10)* > ankle_roll(11)*
+    #   Waist:     waist_yaw(12) > waist_roll(13) > waist_pitch(14)
+    #   Left arm:  shoulder(15-17) > elbow(18) > wrist(19-21)
+    #   Right arm: shoulder(22-24) > elbow(25) > wrist(26)
+    #
+    #   * = 0.02 (end of chain), all others = 0.03
+    #
+    # End-of-chain joints experience higher transient velocities from ground impacts,
+    # causing false triggers. They get a smaller (more permissive) margin.
+    # Same reasoning as Go2 where calf joints (end of chain) use 0.04 vs 0.06 for hip/thigh.
+    margin_duration: [0.03, 0.03, 0.03, 0.03, 0.01, 0.01, 0.03, 0.03, 0.03, 0.03, 0.01, 0.01, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03]
 # See https://github.com/inria-paris-robotics-lab/unitree_control_interface/issues/11#issuecomment-2995477021
