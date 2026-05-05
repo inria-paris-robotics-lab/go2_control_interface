@@ -98,13 +98,13 @@ class WatchDogNode(Node):
             q_i + dt_i * dq_i < q_min_i for q_i, dq_i, dt_i, q_min_i in zip(q, dq, self.margin_duration, self.q_min)
         ]
 
-        if any(q_max_bound):
+        if any(q_max_bound): 
             self._stop_robot(
-                f"Watch-dog detect joint {[(i, q[i], dq[i]) for i, b in enumerate(q_max_bound) if b]} out of bounds. (max q, dq)"
+                f"Watch-dog detect joint {[(i, q[i], self.q_max[i]) for i, b in enumerate(q_max_bound) if b]}(joint number, current q, max q) out of bounds. (max q, dq)"
             )
         if any(q_min_bound):
             self._stop_robot(
-                f"Watch-dog detect joint {[(i, q[i], dq[i]) for i, b in enumerate(q_min_bound) if b]} out of bounds. (min q, dq)"
+                f"Watch-dog detect joint {[(i, q[i], self.q_min[i]) for i, b in enumerate(q_min_bound) if b]}(joint number, current q, max q) out of bounds. (min q, dq)"
             )
         # TODO: Add check on tau (look at cmd ??)
 
