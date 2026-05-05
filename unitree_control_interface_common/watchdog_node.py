@@ -47,6 +47,9 @@ class WatchDogNode(Node):
         # Safety values
         self.q_max = self.declare_parameter("q_max", rclpy.Parameter.Type.DOUBLE_ARRAY).value
         self.q_min = self.declare_parameter("q_min", rclpy.Parameter.Type.DOUBLE_ARRAY).value
+        self.get_logger().info(f"Watchdog q_max is {self.q_max}")
+        self.get_logger().info(f"Watchdog q_min is {self.q_min}")
+
         self.margin_duration = self.declare_parameter("margin_duration", rclpy.Parameter.Type.DOUBLE_ARRAY).value
         assert len(self.q_max) == self.robot_if.N_DOF, f"Parameter q_max should be length {self.robot_if.N_DOF}"
         assert len(self.q_min) == self.robot_if.N_DOF, f"Parameter q_min should be length {self.robot_if.N_DOF}"
@@ -97,11 +100,11 @@ class WatchDogNode(Node):
 
         if any(q_max_bound):
             self._stop_robot(
-                f"Watch-dog detect joint {[i for i, b in enumerate(q_max_bound) if b]} out of bounds. (max q, dq)"
+                f"Watch-dog detect joint {[(i, q[i], dq[i]) for i, b in enumerate(q_max_bound) if b]} out of bounds. (max q, dq)"
             )
         if any(q_min_bound):
             self._stop_robot(
-                f"Watch-dog detect joint {[i for i, b in enumerate(q_min_bound) if b]} out of bounds. (min q, dq)"
+                f"Watch-dog detect joint {[(i, q[i], dq[i]) for i, b in enumerate(q_min_bound) if b]} out of bounds. (min q, dq)"
             )
         # TODO: Add check on tau (look at cmd ??)
 
