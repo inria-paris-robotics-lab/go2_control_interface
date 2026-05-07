@@ -18,3 +18,4 @@ dependencies:
 - ros-humble-rosidl-generator-dds-idl
 - ros-humble-rqt-common-plugins
 - vcstool
+- ros-humble-plotjuggler-ros
