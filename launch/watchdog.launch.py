@@ -12,6 +12,10 @@ def _launch_setup(context, *args, **kwargs):
     limits = LaunchConfiguration("limits").perform(context)
     n_fails = LaunchConfiguration("n_fails").perform(context)
     freq = LaunchConfiguration("freq").perform(context)
+    # 27-DOF: was implicit. dof (27 or 29) is threaded from deploy.py --g1-dof and
+    # must match the bridge's --dof. The watchdog slices the 29-DOF limit arrays
+    # down to N_DOF, so the limits file is the same for both variants.
+    dof = LaunchConfiguration("dof").perform(context)
 
     config_dir = os.path.join(get_package_share_directory("unitree_control_interface"), "config")
 
@@ -40,6 +44,7 @@ def _launch_setup(context, *args, **kwargs):
                     "n_fails": int(n_fails),
                     "freq": int(freq),
                     "robot_type": robot_type,
+                    "dof": int(dof),
                 },
             ],
         )
@@ -64,6 +69,13 @@ def generate_launch_description():
                 "limits",
                 default_value="custom",
                 description="'custom' (falls back to default if file absent) or 'default', or any other suffix matching {robot_type}_{limits}_limits.yaml",
+            ),
+            # 27-DOF: new arg. 27 (mode 6, waist roll/pitch locked) or 29 (mode 5).
+            # Ignored for go2.
+            DeclareLaunchArgument(
+                "dof",
+                default_value="27",
+                description="Actuated G1 DOF: 27 (mode 6) or 29 (mode 5). Ignored for go2.",
             ),
             OpaqueFunction(function=_launch_setup),
         ]

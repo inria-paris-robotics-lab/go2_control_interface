@@ -1,3 +1,7 @@
+# G1 watchdog limits, authored for the full 29-DOF set: array index == unitree
+# joint index 0..28, with waist_roll(13)/waist_pitch(14) included (+/-0.52 rad).
+# The 27-DOF variant (mode 6) does not actuate those two locked waist joints; the
+# watchdog drops indices 13/14 at load time so the arrays line up with N_DOF.
 watchdog:
   ros__parameters:
     q_max: [
@@ -14,6 +18,8 @@ watchdog:
       0.53,
       0.2618,
       2.618,
+      0.52,
+      0.52,
       2.6704,
       2.2515,
       2.618,
@@ -43,6 +49,8 @@ watchdog:
       -0.88,
       -0.2618,
       -2.618,
+      -0.52,
+      -0.52,
       -3.0892,
       -1.5882,
       -2.618,
@@ -62,18 +70,18 @@ watchdog:
     # Larger margin = predicts further ahead = stricter
     # Smaller margin = predicts closer = more permissive
     #
-    # Kinematic chains and margin values:
+    # Kinematic chains and margin values (unitree joint indices):
     #
     #   Left leg:  hip_pitch(0) > hip_roll(1) > hip_yaw(2) > knee(3) > ankle_pitch(4)* > ankle_roll(5)*
     #   Right leg: hip_pitch(6) > hip_roll(7) > hip_yaw(8) > knee(9) > ankle_pitch(10)* > ankle_roll(11)*
-    #   Waist:     waist_yaw(12) > waist_roll(13) > waist_pitch(14)
+    #   Waist:     waist_yaw(12) > waist_roll(13) > waist_pitch(14)   (13/14 only actuated in 29-DOF)
     #   Left arm:  shoulder(15-17) > elbow(18) > wrist(19-21)
-    #   Right arm: shoulder(22-24) > elbow(25) > wrist(26)
+    #   Right arm: shoulder(22-24) > elbow(25) > wrist(26-28)
     #
-    #   * = 0.02 (end of chain), all others = 0.03
+    #   * = 0.01 (end of chain), all others = 0.03
     #
     # End-of-chain joints experience higher transient velocities from ground impacts,
     # causing false triggers. They get a smaller (more permissive) margin.
     # Same reasoning as Go2 where calf joints (end of chain) use 0.04 vs 0.06 for hip/thigh.
-    margin_duration: [0.03, 0.03, 0.03, 0.03, 0.01, 0.01, 0.03, 0.03, 0.03, 0.03, 0.01, 0.01, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03]
+    margin_duration: [0.03, 0.03, 0.03, 0.03, 0.01, 0.01, 0.03, 0.03, 0.03, 0.03, 0.01, 0.01, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03]
 # See https://github.com/inria-paris-robotics-lab/unitree_control_interface/issues/11#issuecomment-2995477021

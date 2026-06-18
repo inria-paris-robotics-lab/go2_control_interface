@@ -33,10 +33,13 @@ class WatchDogNode(Node):
         # Get robot type and create interface
         self.robot_if = None
         robot_type = self.declare_parameter("robot_type", rclpy.Parameter.Type.STRING).value
+        # 27-DOF: was implicit. dof (27 or 29) is threaded from deploy.py --g1-dof
+        # via the launch `dof:=` arg; it must match the bridge's --dof.
+        dof = self.declare_parameter("dof", 27).value
         if robot_type.lower() == "go2":
             self.robot_if = Go2ControlInterface(self, joints_filter_fq_default=200)
         elif robot_type.lower() == "g1":
-            self.robot_if = G1ControlInterface(self, joints_filter_fq_default=200)
+            self.robot_if = G1ControlInterface(self, dof=dof, joints_filter_fq_default=200)
         else:
             assert False, f"Invalid robot_type: '{robot_type}', expected 'g1' or 'go2'"
 
@@ -51,6 +54,20 @@ class WatchDogNode(Node):
         self.get_logger().info(f"Watchdog q_min is {self.q_min}")
 
         self.margin_duration = self.declare_parameter("margin_duration", rclpy.Parameter.Type.DOUBLE_ARRAY).value
+
+        # 27-DOF: G1 limit files are authored for the full 29-DOF set, i.e. array
+        # index == unitree joint index 0..28. The 27-DOF variant (mode 6) does not
+        # actuate waist_roll(13)/waist_pitch(14), so keep only the actuated indices
+        # to line up with N_DOF. _urdf_to_unitree_index_array is range(29) in 29-DOF
+        # (no-op) and (0..12, 15..28) in 27-DOF (drops 13/14). Go2 files already
+        # match N_DOF, and a legacy 27-entry G1 file is left untouched (the asserts
+        # below still validate the length).
+        if robot_type.lower() == "g1" and len(self.q_max) == 29:
+            keep = self.robot_if._urdf_to_unitree_index_array
+            self.q_max = [self.q_max[i] for i in keep]
+            self.q_min = [self.q_min[i] for i in keep]
+            self.margin_duration = [self.margin_duration[i] for i in keep]
+
         assert len(self.q_max) == self.robot_if.N_DOF, f"Parameter q_max should be length {self.robot_if.N_DOF}"
         assert len(self.q_min) == self.robot_if.N_DOF, f"Parameter q_min should be length {self.robot_if.N_DOF}"
         assert len(self.margin_duration) == self.robot_if.N_DOF, (

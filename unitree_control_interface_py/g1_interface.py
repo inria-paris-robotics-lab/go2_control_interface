@@ -5,44 +5,25 @@ from unitree_sdk2py.utils.crc import CRC
 
 
 class G1ControlInterface(UnitreeControlInterface):
+    # Full set of unitree motor indices for a 29-DOF G1, in URDF order.
+    _UNITREE_INDICES_29 = tuple(range(29))
+    # The 27-DOF variant (mode_machine=6) mechanically locks waist_roll (13) and
+    # waist_pitch (14); they are excluded from the actuated set.
+    _LOCKED_WAIST = (13, 14)
+
     @property
     def _urdf_to_unitree_index_array(self) -> List[int]:
-        return (
-            0,
-            1,
-            2,
-            3,
-            4,
-            5,  # left leg
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,  # right leg
-            12,  # waist (here the two locked DoF - 13 and 14 - are skipped)
-            15,
-            16,
-            17,
-            18,
-            19,
-            20,
-            21,  # left arm
-            22,
-            23,
-            24,
-            25,
-            26,
-            27,
-            28,  # right arm
-        )
+        if self._dof == 29:
+            return self._UNITREE_INDICES_29
+        # 27-DOF: was the hardcoded tuple (0..12, 15..28), i.e. skipping 13 and 14.
+        return tuple(i for i in self._UNITREE_INDICES_29 if i not in self._LOCKED_WAIST)
 
     @property
     def N_DOF(self) -> int:
         """
         Number of actuated degrees of freedom (thus free-flyer should be excluded)
         """
-        return 27
+        return self._dof  # 27-DOF: was a hardcoded 27
 
     @property
     def ROBOT_FQ(self) -> float:
@@ -78,7 +59,9 @@ class G1ControlInterface(UnitreeControlInterface):
         msg = LowCmd()
 
         msg.mode_pr = 0  # Parallel mechanism (ankle and waist) control mode (default 0) 0:PR, 1:AB
-        msg.mode_machine = 6  # G1 Type：4：23-Dof;5:29-Dof;6:27-Dof(29Dof Fitted at the waist)
+        # G1 Type：4：23-Dof; 5:29-Dof; 6:27-Dof (29Dof fitted at the waist).
+        # 27-DOF: was a hardcoded 6.
+        msg.mode_machine = 5 if self._dof == 29 else 6
 
         return msg
 
@@ -88,6 +71,12 @@ class G1ControlInterface(UnitreeControlInterface):
         """
         return self.crc._CRC__Crc32(self.crc._CRC__PackHGLowCmd(msg))
 
-    def __init__(self, node, *, joints_filter_fq_default=-1):
+    def __init__(self, node, *, dof=27, joints_filter_fq_default=-1):
+        # 27-DOF: was a hardcoded 27. Now a constructor arg threaded from the CLI
+        # (deploy.py --g1-dof → watchdog `dof:=` param and bridge `--dof`).
+        # Default 27 preserves the previous behaviour.
+        if dof not in (27, 29):
+            raise ValueError(f"G1 dof must be 27 or 29, got {dof}")
+        self._dof = dof
         super().__init__(node, joints_filter_fq_default=joints_filter_fq_default)
         self.crc = CRC()

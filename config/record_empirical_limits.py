@@ -12,6 +12,11 @@ Usage:
 
 If g1_custom_limits.yaml already exists, existing bounds are preserved and
 only extended as new extremes are observed (session is resumable).
+
+The recorder is authored for the full 29-DOF G1: it samples all 29 hardware
+joints (waist_roll/waist_pitch included). On a 27-DOF robot (mode 6) the two
+waist joints are mechanically locked, so they simply never move and keep the
+default bound on save; the 27-DOF watchdog ignores indices 13/14 anyway.
 """
 
 import math
@@ -32,19 +37,13 @@ OUTPUT_FILE = os.path.join(_HERE, "g1_custom_limits.yaml")
 DEFAULT_FILE = os.path.join(_HERE, "g1_default_limits.yaml")
 
 # ---------------------------------------------------------------------------
-# G1 constants  (from g1_interface.py)
+# G1 constants  (from g1_interface.py, 29-DOF set)
 #
-# URDF indices 0-26 map to hardware (unitree) indices below.
-# Two waist joints (unitree 13, 14) are mechanically locked → skipped.
+# Array index == unitree hardware index 0..28. waist_roll(13)/waist_pitch(14)
+# are actuated only in 29-DOF (mode 5); on a 27-DOF robot they stay locked.
 # ---------------------------------------------------------------------------
-URDF_TO_UNITREE = (
-    0, 1, 2, 3, 4, 5,           # left leg
-    6, 7, 8, 9, 10, 11,          # right leg
-    12,                          # waist_yaw  (unitree 13 & 14 locked)
-    15, 16, 17, 18, 19, 20, 21,  # left arm
-    22, 23, 24, 25, 26, 27, 28,  # right arm
-)
-N_DOF = 27
+URDF_TO_UNITREE = tuple(range(29))
+N_DOF = 29
 
 JOINT_NAMES = [
     # left leg
@@ -53,8 +52,8 @@ JOINT_NAMES = [
     # right leg
     "R_hip_pitch", "R_hip_roll", "R_hip_yaw", "R_knee",
     "R_ankle_pitch", "R_ankle_roll",
-    # waist (1 active joint)
-    "waist_yaw",
+    # waist (3 joints; roll/pitch locked in 27-DOF)
+    "waist_yaw", "waist_roll", "waist_pitch",
     # left arm
     "L_sho_pitch", "L_sho_roll", "L_sho_yaw", "L_elbow",
     "L_wrist_roll", "L_wrist_pitch", "L_wrist_yaw",
@@ -72,7 +71,7 @@ DISPLAY_FREQ_HZ = 10.0
 DEFAULT_MARGIN_DURATION = [
     0.03, 0.03, 0.03, 0.03, 0.03, 0.03,  # left leg
     0.03, 0.03, 0.03, 0.03, 0.03, 0.03,  # right leg
-    0.03,                                  # waist
+    0.03, 0.03, 0.03,                     # waist (yaw, roll, pitch)
     0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03,  # left arm
     0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03,  # right arm
 ]
