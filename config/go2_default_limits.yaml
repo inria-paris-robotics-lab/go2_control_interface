@@ -15,3 +15,9 @@ watchdog:
                       0.06, 0.06, 0.04,
                       0.06, 0.06, 0.04]
         # See https://github.com/inria-paris-robotics-lab/unitree_control_interface/issues/11#issuecomment-2995477021
+    # Per-joint soft-limit back-off used by joint_clamp_node (soft = hard -/+ margin).
+    # Default 0.005 rad on every joint; raise a value to back off further. FL,FR,RL,RR.
+    q_soft_margin: [0.005, 0.005, 0.005,
+                    0.005, 0.005, 0.005,
+                    0.005, 0.005, 0.005,
+                    0.005, 0.005, 0.005]

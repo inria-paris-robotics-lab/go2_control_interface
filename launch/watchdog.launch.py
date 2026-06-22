@@ -1,5 +1,6 @@
 import os
 
+import yaml
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, OpaqueFunction
@@ -16,6 +17,7 @@ def _launch_setup(context, *args, **kwargs):
     # must match the bridge's --dof. The watchdog slices the 29-DOF limit arrays
     # down to N_DOF, so the limits file is the same for both variants.
     dof = LaunchConfiguration("dof").perform(context)
+    enable_clamp = LaunchConfiguration("enable_clamp").perform(context).lower() in ("true", "1", "yes")
 
     config_dir = os.path.join(get_package_share_directory("unitree_control_interface"), "config")
 
@@ -32,7 +34,7 @@ def _launch_setup(context, *args, **kwargs):
         config_path = os.path.join(config_dir, f"{robot_type}_{limits}_limits.yaml")
         print(f"[watchdog] Using limits: {config_path}")
 
-    return [
+    nodes = [
         Node(
             package="unitree_control_interface",
             executable="watchdog_node.py",
@@ -49,6 +51,43 @@ def _launch_setup(context, *args, **kwargs):
             ],
         )
     ]
+
+    # Joint clamping relay (soft position limits). Sits between controller and
+    # robot: it reads `lowcmd_raw` + `lowstate` and republishes the clamped command
+    # on `/lowcmd`. To feed it, the controller must publish to `lowcmd_raw` instead
+    # of `/lowcmd` -- launch the controller with the remapping `lowcmd:=lowcmd_raw`.
+    # Soft limits are the q_min/q_max of the same limits file used by the watchdog.
+    if enable_clamp:
+        print("[watchdog] Joint clamping enabled (lowcmd_raw -> clamp -> /lowcmd).")
+        # The limits file keys its parameters under the `watchdog:` node name, so a
+        # node named `joint_clamp` wouldn't pick up q_min/q_max from it. Read the
+        # soft limits here and pass them directly to the clamp node (keeps the YAML
+        # format unchanged for the watchdog and the empirical recorder).
+        with open(config_path) as f:
+            limits = yaml.safe_load(f)["watchdog"]["ros__parameters"]
+        clamp_params = {
+            "robot_type": robot_type,
+            "dof": int(dof),
+            "cmd_in": "lowcmd_raw",
+            "cmd_out": "/lowcmd",
+            "q_max": [float(x) for x in limits["q_max"]],
+            "q_min": [float(x) for x in limits["q_min"]],
+        }
+        # Optional per-joint soft-limit margin (soft = hard -/+ margin). If the limits
+        # file doesn't define it, the clamp node defaults to 0.005 rad on every joint.
+        if "q_soft_margin" in limits:
+            clamp_params["q_soft_margin"] = [float(x) for x in limits["q_soft_margin"]]
+        nodes.append(
+            Node(
+                package="unitree_control_interface",
+                executable="joint_clamp_node.py",
+                name="joint_clamp",
+                output="screen",
+                parameters=[clamp_params],
+            )
+        )
+
+    return nodes
 
 
 def generate_launch_description():
@@ -76,6 +115,16 @@ def generate_launch_description():
                 "dof",
                 default_value="27",
                 description="Actuated G1 DOF: 27 (mode 6) or 29 (mode 5). Ignored for go2.",
+            ),
+            DeclareLaunchArgument(
+                "enable_clamp",
+                default_value="false",
+                description=(
+                    "Start the joint_clamp relay node (soft position limits). When true, the "
+                    "controller MUST publish to 'lowcmd_raw' (launch it with remapping "
+                    "lowcmd:=lowcmd_raw), otherwise the robot receives no command and is "
+                    "timeout-killed. Default false preserves the previous direct /lowcmd path."
+                ),
             ),
             OpaqueFunction(function=_launch_setup),
         ]

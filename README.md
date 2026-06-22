@@ -111,7 +111,7 @@ ros2 run unitree_control_interface shutdown_sportsmode.py
 ```
 
 #### 2. Launch watchdog
-The watchdog node enforces some safeties on the robot. For instance, if the commands sent are too spaced-out in time or if the joints are out of some certain safety bounds, it kills the robot.
+The watchdog node enforces some safeties on the robot. If the commands sent are too spaced-out in time (timeout) or if any joint velocity `|dq|` exceeds the URDF limit, it kills the robot (damping). It also acts as a soft e-stop via `/watchdog/arm`.
 
 The unitree_control_interface won't start if this node is node running.
 
@@ -119,6 +119,40 @@ To launch it:
 ```bash
 ros2 launch unitree_control_interface watchdog.launch.py robot_type:=g1
 ```
+
+##### Velocity watchdog
+The watchdog checks that each joint velocity stays within the URDF velocity limit (in absolute value). The limits live in the robot interface as `DQ_MAX` (read straight from the Unitree URDF, e.g. `g1_29dof.urdf`), sliced automatically for the 27/29-DOF G1. Only the G1 defines `DQ_MAX`; on the Go2 the velocity check is disabled (`DQ_MAX = None`).
+
+> Position bounds are **no longer** enforced by the watchdog (it used to kill the robot when `q + dq·margin` left the `q_min/q_max` range). Position safety is now handled by the joint clamping node below. With clamping disabled, the only active safeties are timeout, velocity and e-stop.
+
+##### Joint clamping (soft position limits)
+Instead of killing the robot when a joint approaches its limit, an optional relay node clamps the **commanded** position to soft limits. It sits between the controller and the robot:
+
+```
+controller --(lowcmd_raw)--> [joint_clamp] --(/lowcmd)--> robot
+                                  ^
+                               lowstate
+```
+
+Per joint there are two limits: the **hard** limit `q_lim` (`q_min`/`q_max`) and the **soft** limit `q_soft` (`= q_lim` shrunk inward by the margin). While the raw command stays within the hard limit it passes through unchanged, so the joint is free to move anywhere up to `q_lim` — including the band `[q_soft, q_lim]`. The clamp engages (per joint, per direction) only when the raw command tries to exceed the **hard** limit **and** the measured position is already past the soft limit; while engaged, the output is held at the measured position `q_state` so the joint stops being driven further. It releases — and the normal command resumes — as soon as the raw command comes back within the hard limit.
+
+The soft limits are derived from the hard limits `q_min`/`q_max` of the same limits file the watchdog loads (`{robot_type}_custom_limits.yaml`, fallback `{robot_type}_default_limits.yaml`), backed off by a per-joint margin:
+
+```
+soft_max = q_max - q_soft_margin
+soft_min = q_min + q_soft_margin
+```
+
+`q_soft_margin` is a per-joint array in the limits YAML (same order as `q_max`/`q_min`), defaulting to **0.005 rad** on every joint when absent. Set it per joint for a manual setup — raise a joint's value to back off further from its hard limit (it must stay below half the joint range). The hard limits themselves are defined/recorded with `config/record_empirical_limits.py`.
+
+To enable it:
+```bash
+# 1. launch the watchdog WITH the clamp relay
+ros2 launch unitree_control_interface watchdog.launch.py robot_type:=g1 enable_clamp:=true
+# 2. launch your controller so it publishes to lowcmd_raw instead of /lowcmd:
+ros2 run <your_pkg> <your_node> --ros-args -r lowcmd:=lowcmd_raw
+```
+If `enable_clamp:=true` but the controller is not remapped to `lowcmd_raw`, the clamp node receives nothing, the robot gets no command and the watchdog timeout-kills it. The default `enable_clamp:=false` keeps the controller publishing directly to `/lowcmd` (no clamping).
 
 #### 3. Run your app
 Here is the boilerplate/example code to write your app

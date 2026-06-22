@@ -33,6 +33,12 @@ class UnitreeControlInterface(ABC):
         """
         pass
 
+    # Per-joint absolute velocity limits |dq|, in URDF order (length N_DOF), taken
+    # from the robot URDF. Consumed by the velocity watchdog (|dq_i| > DQ_MAX_i =>
+    # stop). Left as None here (no velocity watchdog); robots that want the check
+    # override this property. Currently only the G1 defines it.
+    DQ_MAX = None
+
     @property
     @abstractmethod
     def Kp_static(self) -> List[int]:

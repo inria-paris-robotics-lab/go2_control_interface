@@ -11,12 +11,36 @@ class G1ControlInterface(UnitreeControlInterface):
     # waist_pitch (14); they are excluded from the actuated set.
     _LOCKED_WAIST = (13, 14)
 
+    # Absolute joint velocity limits |dq| (rad/s), indexed by unitree joint index
+    # 0..28 (== URDF order for the G1). Read straight from g1_29dof.urdf <limit
+    # velocity="...">. Order:
+    #   left leg  : hip_pitch,hip_roll,hip_yaw,knee,ankle_pitch,ankle_roll
+    #   right leg : (idem)
+    #   waist     : yaw,roll,pitch              (roll/pitch locked in 27-DOF)
+    #   left arm  : sho_pitch,sho_roll,sho_yaw,elbow,wrist_roll,wrist_pitch,wrist_yaw
+    #   right arm : (idem)
+    _G1_DQ_MAX_29 = (
+        32.0, 32.0, 32.0, 20.0, 37.0, 37.0,   # left leg
+        32.0, 32.0, 32.0, 20.0, 37.0, 37.0,   # right leg
+        32.0, 37.0, 37.0,                      # waist (yaw, roll, pitch)
+        37.0, 37.0, 37.0, 37.0, 37.0, 22.0, 22.0,  # left arm
+        37.0, 37.0, 37.0, 37.0, 37.0, 22.0, 22.0,  # right arm
+    )
+
     @property
     def _urdf_to_unitree_index_array(self) -> List[int]:
         if self._dof == 29:
             return self._UNITREE_INDICES_29
         # 27-DOF: was the hardcoded tuple (0..12, 15..28), i.e. skipping 13 and 14.
         return tuple(i for i in self._UNITREE_INDICES_29 if i not in self._LOCKED_WAIST)
+
+    @property
+    def DQ_MAX(self) -> List[float]:
+        """
+        Per-joint |dq| limits in URDF order, length N_DOF. Same slicing as q_max:
+        identity in 29-DOF, drops the locked waist joints (13/14) in 27-DOF.
+        """
+        return tuple(self._G1_DQ_MAX_29[i] for i in self._urdf_to_unitree_index_array)
 
     @property
     def N_DOF(self) -> int:

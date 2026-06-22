@@ -13,12 +13,12 @@ class WatchDogNode(Node):
      state | is_stopped | is_waiting | description
     -------|------------|------------|------------
        A   |     0      |     1      | The watchdog is armed, ready to start, but not actually checking
-       B   |     0      |     0      | The watchdog is running, check joints bounds and timeout
+       B   |     0      |     0      | The watchdog is running, check joint velocity and timeout
        C   |     1      |     -      | The watchdog spam stops commands
 
     The transitions are as follow:
     A -> B : if a msg is received on /lowcmd
-    B -> C : if the joint bounds or the timeout is exceeded
+    B -> C : if the velocity limit (|dq| > DQ_MAX) or the timeout is exceeded
     any -> C : if a False is received on /watchdog/arm
     any -> A : if a True is received on /watchdog/arm
 
@@ -47,33 +47,19 @@ class WatchDogNode(Node):
         self.freq = self.declare_parameter("freq", 100).value
         self.n_fail = self.declare_parameter("n_fail", 2).value
 
-        # Safety values
-        self.q_max = self.declare_parameter("q_max", rclpy.Parameter.Type.DOUBLE_ARRAY).value
-        self.q_min = self.declare_parameter("q_min", rclpy.Parameter.Type.DOUBLE_ARRAY).value
-        self.get_logger().info(f"Watchdog q_max is {self.q_max}")
-        self.get_logger().info(f"Watchdog q_min is {self.q_min}")
-
-        self.margin_duration = self.declare_parameter("margin_duration", rclpy.Parameter.Type.DOUBLE_ARRAY).value
-
-        # 27-DOF: G1 limit files are authored for the full 29-DOF set, i.e. array
-        # index == unitree joint index 0..28. The 27-DOF variant (mode 6) does not
-        # actuate waist_roll(13)/waist_pitch(14), so keep only the actuated indices
-        # to line up with N_DOF. _urdf_to_unitree_index_array is range(29) in 29-DOF
-        # (no-op) and (0..12, 15..28) in 27-DOF (drops 13/14). Go2 files already
-        # match N_DOF, and a legacy 27-entry G1 file is left untouched (the asserts
-        # below still validate the length).
-        if robot_type.lower() == "g1" and len(self.q_max) == 29:
-            keep = self.robot_if._urdf_to_unitree_index_array
-            self.q_max = [self.q_max[i] for i in keep]
-            self.q_min = [self.q_min[i] for i in keep]
-            self.margin_duration = [self.margin_duration[i] for i in keep]
-
-        assert len(self.q_max) == self.robot_if.N_DOF, f"Parameter q_max should be length {self.robot_if.N_DOF}"
-        assert len(self.q_min) == self.robot_if.N_DOF, f"Parameter q_min should be length {self.robot_if.N_DOF}"
-        assert len(self.margin_duration) == self.robot_if.N_DOF, (
-            f"Parameter margin_duration should be length {self.robot_if.N_DOF}"
-        )
-        assert all(d >= 0.0 for d in self.margin_duration), "Parameter margin_duration should be non negative"
+        # Velocity safety limits |dq| (rad/s), in URDF order, length N_DOF. These
+        # come from the robot URDF via the interface (G1 only for now)
+        # DQ_MAX = None, in which case the velocity check is disabled. Position
+        # bounds are no longer enforced here: out-of-range positions are prevented
+        # upstream by the joint_clamp_node (soft limits), not by killing the robot.
+        self.dq_max = self.robot_if.DQ_MAX
+        if self.dq_max is None:
+            self.get_logger().warning("Watchdog velocity check disabled (no DQ_MAX defined for this robot).")
+        else:
+            assert len(self.dq_max) == self.robot_if.N_DOF, (
+                f"DQ_MAX should be length {self.robot_if.N_DOF}, got {len(self.dq_max)}"
+            )
+            self.get_logger().info(f"Watchdog dq_max (|dq| limit) is {list(self.dq_max)}")
 
         # Watchdog timer logic
         self.cnt = 0
@@ -107,21 +93,15 @@ class WatchDogNode(Node):
         self.cnt = 0  # Reset timeout
 
     def __state_cb(self, t, q, dq, ddq):
-        # Joint bounds
-        q_max_bound = [
-            q_i + dt_i * dq_i > q_max_i for q_i, dq_i, dt_i, q_max_i in zip(q, dq, self.margin_duration, self.q_max)
-        ]
-        q_min_bound = [
-            q_i + dt_i * dq_i < q_min_i for q_i, dq_i, dt_i, q_min_i in zip(q, dq, self.margin_duration, self.q_min)
-        ]
+        # Velocity bounds: |dq| must stay within the URDF velocity limits.
+        if self.dq_max is None:
+            return
 
-        if any(q_max_bound): 
+        dq_bound = [abs(dq_i) > dq_max_i for dq_i, dq_max_i in zip(dq, self.dq_max)]
+        if any(dq_bound):
             self._stop_robot(
-                f"Watch-dog detect joint {[(i, q[i], self.q_max[i]) for i, b in enumerate(q_max_bound) if b]}(joint number, current q, max q) out of bounds. (max q, dq)"
-            )
-        if any(q_min_bound):
-            self._stop_robot(
-                f"Watch-dog detect joint {[(i, q[i], self.q_min[i]) for i, b in enumerate(q_min_bound) if b]}(joint number, current q, max q) out of bounds. (min q, dq)"
+                f"Watch-dog detect joint {[(i, dq[i], self.dq_max[i]) for i, b in enumerate(dq_bound) if b]} "
+                "(joint number, current dq, max |dq|) over speed limit."
             )
         # TODO: Add check on tau (look at cmd ??)
 

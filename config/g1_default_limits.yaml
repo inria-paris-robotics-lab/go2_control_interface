@@ -84,4 +84,10 @@ watchdog:
     # causing false triggers. They get a smaller (more permissive) margin.
     # Same reasoning as Go2 where calf joints (end of chain) use 0.04 vs 0.06 for hip/thigh.
     margin_duration: [0.03, 0.03, 0.03, 0.03, 0.01, 0.01, 0.03, 0.03, 0.03, 0.03, 0.01, 0.01, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03]
+    # Per-joint soft-limit back-off used by joint_clamp_node (NOT the watchdog):
+    #   soft_max = q_max - q_soft_margin ;  soft_min = q_min + q_soft_margin
+    # Same 29-entry unitree-index order as q_max/q_min (sliced for 27-DOF). Default
+    # 0.005 rad on every joint; raise a joint's value to back off further from its
+    # hard limit. Must stay below half the joint range (else soft_min > soft_max).
+    q_soft_margin: [0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005, 0.005]
 # See https://github.com/inria-paris-robotics-lab/unitree_control_interface/issues/11#issuecomment-2995477021
