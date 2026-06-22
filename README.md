@@ -134,16 +134,9 @@ controller --(lowcmd_raw)--> [joint_clamp] --(/lowcmd)--> robot
                                lowstate
 ```
 
-Per joint there are two limits: the **hard** limit `q_lim` (`q_min`/`q_max`) and the **soft** limit `q_soft` (`= q_lim` shrunk inward by the margin). While the raw command stays within the hard limit it passes through unchanged, so the joint is free to move anywhere up to `q_lim` — including the band `[q_soft, q_lim]`. The clamp engages (per joint, per direction) only when the raw command tries to exceed the **hard** limit **and** the measured position is already past the soft limit; while engaged, the output is held at the measured position `q_state` so the joint stops being driven further. It releases — and the normal command resumes — as soon as the raw command comes back within the hard limit.
+Per joint, two latches: when the raw command goes past the soft limit **and** the measured position reaches that limit, the output command is held at the measured position (the joint stops being driven past the limit). The latch releases, and the normal command resumes — as soon as the raw command comes back inside the soft limit.
 
-The soft limits are derived from the hard limits `q_min`/`q_max` of the same limits file the watchdog loads (`{robot_type}_custom_limits.yaml`, fallback `{robot_type}_default_limits.yaml`), backed off by a per-joint margin:
-
-```
-soft_max = q_max - q_soft_margin
-soft_min = q_min + q_soft_margin
-```
-
-`q_soft_margin` is a per-joint array in the limits YAML (same order as `q_max`/`q_min`), defaulting to **0.005 rad** on every joint when absent. Set it per joint for a manual setup — raise a joint's value to back off further from its hard limit (it must stay below half the joint range). The hard limits themselves are defined/recorded with `config/record_empirical_limits.py`.
+The soft limits are the `q_min`/`q_max` of the same limits file the watchdog loads (`{robot_type}_custom_limits.yaml`, fallback `{robot_type}_default_limits.yaml`). Define/record them with `config/record_empirical_limits.py` (see the *Recording joint limits* note).
 
 To enable it:
 ```bash

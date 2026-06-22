@@ -55,7 +55,7 @@ def _launch_setup(context, *args, **kwargs):
     # Joint clamping relay (soft position limits). Sits between controller and
     # robot: it reads `lowcmd_raw` + `lowstate` and republishes the clamped command
     # on `/lowcmd`. To feed it, the controller must publish to `lowcmd_raw` instead
-    # of `/lowcmd` -- launch the controller with the remapping `lowcmd:=lowcmd_raw`.
+    # of `/lowcmd` launch the controller with the remapping `lowcmd:=lowcmd_raw`.
     # Soft limits are the q_min/q_max of the same limits file used by the watchdog.
     if enable_clamp:
         print("[watchdog] Joint clamping enabled (lowcmd_raw -> clamp -> /lowcmd).")
@@ -65,25 +65,22 @@ def _launch_setup(context, *args, **kwargs):
         # format unchanged for the watchdog and the empirical recorder).
         with open(config_path) as f:
             limits = yaml.safe_load(f)["watchdog"]["ros__parameters"]
-        clamp_params = {
-            "robot_type": robot_type,
-            "dof": int(dof),
-            "cmd_in": "lowcmd_raw",
-            "cmd_out": "/lowcmd",
-            "q_max": [float(x) for x in limits["q_max"]],
-            "q_min": [float(x) for x in limits["q_min"]],
-        }
-        # Optional per-joint soft-limit margin (soft = hard -/+ margin). If the limits
-        # file doesn't define it, the clamp node defaults to 0.005 rad on every joint.
-        if "q_soft_margin" in limits:
-            clamp_params["q_soft_margin"] = [float(x) for x in limits["q_soft_margin"]]
         nodes.append(
             Node(
                 package="unitree_control_interface",
                 executable="joint_clamp_node.py",
                 name="joint_clamp",
                 output="screen",
-                parameters=[clamp_params],
+                parameters=[
+                    {
+                        "robot_type": robot_type,
+                        "dof": int(dof),
+                        "cmd_in": "lowcmd_raw",
+                        "cmd_out": "/lowcmd",
+                        "q_max": [float(x) for x in limits["q_max"]],
+                        "q_min": [float(x) for x in limits["q_min"]],
+                    },
+                ],
             )
         )
 
