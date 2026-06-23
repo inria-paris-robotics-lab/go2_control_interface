@@ -47,19 +47,39 @@ N_DOF = 29
 
 JOINT_NAMES = [
     # left leg
-    "L_hip_pitch", "L_hip_roll", "L_hip_yaw", "L_knee",
-    "L_ankle_pitch", "L_ankle_roll",
+    "L_hip_pitch",
+    "L_hip_roll",
+    "L_hip_yaw",
+    "L_knee",
+    "L_ankle_pitch",
+    "L_ankle_roll",
     # right leg
-    "R_hip_pitch", "R_hip_roll", "R_hip_yaw", "R_knee",
-    "R_ankle_pitch", "R_ankle_roll",
+    "R_hip_pitch",
+    "R_hip_roll",
+    "R_hip_yaw",
+    "R_knee",
+    "R_ankle_pitch",
+    "R_ankle_roll",
     # waist (3 joints; roll/pitch locked in 27-DOF)
-    "waist_yaw", "waist_roll", "waist_pitch",
+    "waist_yaw",
+    "waist_roll",
+    "waist_pitch",
     # left arm
-    "L_sho_pitch", "L_sho_roll", "L_sho_yaw", "L_elbow",
-    "L_wrist_roll", "L_wrist_pitch", "L_wrist_yaw",
+    "L_sho_pitch",
+    "L_sho_roll",
+    "L_sho_yaw",
+    "L_elbow",
+    "L_wrist_roll",
+    "L_wrist_pitch",
+    "L_wrist_yaw",
     # right arm
-    "R_sho_pitch", "R_sho_roll", "R_sho_yaw", "R_elbow",
-    "R_wrist_roll", "R_wrist_pitch", "R_wrist_yaw",
+    "R_sho_pitch",
+    "R_sho_roll",
+    "R_sho_yaw",
+    "R_elbow",
+    "R_wrist_roll",
+    "R_wrist_pitch",
+    "R_wrist_yaw",
 ]
 
 # Margin durations copied from default limits (end-of-chain joints use 0.01)
@@ -69,17 +89,42 @@ CAPTURE_FREQ_HZ = 1000.0
 DISPLAY_FREQ_HZ = 10.0
 
 DEFAULT_MARGIN_DURATION = [
-    0.03, 0.03, 0.03, 0.03, 0.03, 0.03,  # left leg
-    0.03, 0.03, 0.03, 0.03, 0.03, 0.03,  # right leg
-    0.03, 0.03, 0.03,                     # waist (yaw, roll, pitch)
-    0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03,  # left arm
-    0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03,  # right arm
+    0.03,
+    0.03,
+    0.03,
+    0.03,
+    0.03,
+    0.03,  # left leg
+    0.03,
+    0.03,
+    0.03,
+    0.03,
+    0.03,
+    0.03,  # right leg
+    0.03,
+    0.03,
+    0.03,  # waist (yaw, roll, pitch)
+    0.03,
+    0.03,
+    0.03,
+    0.03,
+    0.03,
+    0.03,
+    0.03,  # left arm
+    0.03,
+    0.03,
+    0.03,
+    0.03,
+    0.03,
+    0.03,
+    0.03,  # right arm
 ]
 
 
 # ---------------------------------------------------------------------------
 # YAML helpers
 # ---------------------------------------------------------------------------
+
 
 def _load_default_limits():
     with open(DEFAULT_FILE) as f:
@@ -104,14 +149,8 @@ def _save_limits(q_min, q_max, default_q_min, default_q_max):
     For joints not yet observed (still at sentinel ±inf), fall back to the
     default limit so the file is always safe to load by the watchdog.
     """
-    saved_min = [
-        round(default_q_min[i], 6) if math.isinf(q_min[i]) else round(q_min[i], 6)
-        for i in range(N_DOF)
-    ]
-    saved_max = [
-        round(default_q_max[i], 6) if math.isinf(q_max[i]) else round(q_max[i], 6)
-        for i in range(N_DOF)
-    ]
+    saved_min = [round(default_q_min[i], 6) if math.isinf(q_min[i]) else round(q_min[i], 6) for i in range(N_DOF)]
+    saved_max = [round(default_q_max[i], 6) if math.isinf(q_max[i]) else round(q_max[i], 6) for i in range(N_DOF)]
     data = {
         "watchdog": {
             "ros__parameters": {
@@ -129,12 +168,12 @@ def _save_limits(q_min, q_max, default_q_min, default_q_max):
 # Display helper
 # ---------------------------------------------------------------------------
 
+
 def _display(q_min, q_max, default_q_min, default_q_max, n_samples):
     # Move cursor to top of screen instead of clearing (avoids flicker)
     print("\033[H", end="")
     print(f"=== G1 Empirical Limits Recorder  —  {n_samples} samples ===\n")
-    print(f"  {'Joint':<18} {'obs_min':>9} {'obs_max':>9}  "
-          f"{'def_min':>9} {'def_max':>9}  {'explored':>8}")
+    print(f"  {'Joint':<18} {'obs_min':>9} {'obs_max':>9}  {'def_min':>9} {'def_max':>9}  {'explored':>8}")
     print("  " + "-" * 68)
     for i in range(N_DOF):
         has_data = not (math.isinf(q_min[i]) or math.isinf(q_max[i]))
@@ -148,8 +187,7 @@ def _display(q_min, q_max, default_q_min, default_q_max, n_samples):
             explored = "     ---"
         def_min_s = f"{default_q_min[i]:+.4f}"
         def_max_s = f"{default_q_max[i]:+.4f}"
-        print(f"  {JOINT_NAMES[i]:<18} {obs_min_s:>9} {obs_max_s:>9}  "
-              f"{def_min_s:>9} {def_max_s:>9}  {explored:>8}")
+        print(f"  {JOINT_NAMES[i]:<18} {obs_min_s:>9} {obs_max_s:>9}  {def_min_s:>9} {def_max_s:>9}  {explored:>8}")
     n_observed = sum(1 for i in range(N_DOF) if not math.isinf(q_min[i]))
     print(f"\n  {n_observed}/{N_DOF} joints observed  —  saving to: {OUTPUT_FILE}")
     print("  Press Ctrl+C to stop.\n")
@@ -158,6 +196,7 @@ def _display(q_min, q_max, default_q_min, default_q_max, n_samples):
 # ---------------------------------------------------------------------------
 # ROS2 node
 # ---------------------------------------------------------------------------
+
 
 class EmpiricalLimitsRecorder(Node):
     def __init__(self, q_min, q_max, default_q_min, default_q_max):
@@ -204,6 +243,7 @@ class EmpiricalLimitsRecorder(Node):
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
+
 
 def main():
     default_q_min, default_q_max = _load_default_limits()

@@ -20,11 +20,35 @@ class G1ControlInterface(UnitreeControlInterface):
     #   left arm  : sho_pitch,sho_roll,sho_yaw,elbow,wrist_roll,wrist_pitch,wrist_yaw
     #   right arm : (idem)
     _G1_DQ_MAX_29 = (
-        32.0, 32.0, 32.0, 20.0, 37.0, 37.0,   # left leg
-        32.0, 32.0, 32.0, 20.0, 37.0, 37.0,   # right leg
-        32.0, 37.0, 37.0,                      # waist (yaw, roll, pitch)
-        37.0, 37.0, 37.0, 37.0, 37.0, 22.0, 22.0,  # left arm
-        37.0, 37.0, 37.0, 37.0, 37.0, 22.0, 22.0,  # right arm
+        32.0,
+        32.0,
+        32.0,
+        20.0,
+        37.0,
+        37.0,  # left leg
+        32.0,
+        32.0,
+        32.0,
+        20.0,
+        37.0,
+        37.0,  # right leg
+        32.0,
+        37.0,
+        37.0,  # waist (yaw, roll, pitch)
+        37.0,
+        37.0,
+        37.0,
+        37.0,
+        37.0,
+        22.0,
+        22.0,  # left arm
+        37.0,
+        37.0,
+        37.0,
+        37.0,
+        37.0,
+        22.0,
+        22.0,  # right arm
     )
 
     @property
